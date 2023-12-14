@@ -1,18 +1,18 @@
 #!/usr/bin/env python3
 import sys 
-sys.path.insert(0, '/uufs/chpc.utah.edu/common/home/koper-group1/bbaker/waveformArchive/gcc_build')
+sys.path.insert(0, '/uufs/chpc.utah.edu/common/home/koper-group4/bbaker/waveformArchive/gcc_build')
 #sys.path.insert(0, '/uufs/chpc.utah.edu/common/home/koper-group1/bbaker/templateMatchingSource/rtseis/notchpeak4_gcc83_build/')
-sys.path.insert(0, '/uufs/chpc.utah.edu/common/home/koper-group1/bbaker/mlmodels/deepLearning/apply/np4_build')
-sys.path.insert(0, '/uufs/chpc.utah.edu/common/home/koper-group1/bbaker/mlmodels/features/np4_build')
+sys.path.insert(0, '/uufs/chpc.utah.edu/common/home/koper-group4/bbaker/mlmodels/intel_cpu_build')
+sys.path.insert(0, '/uufs/chpc.utah.edu/common/home/koper-group4/bbaker/mlmodels/features/np4_build')
 import h5py
 import pyWaveformArchive as pwa 
+import pyuussmlmodels as uuss
 import pyuussFeatures as pf
 #import libpyrtseis as rtseis
-import pyuussmlmodels as uuss
 import pandas as pd
-import matplotlib.pyplot as plt
 import numpy as np
-
+import matplotlib.pyplot as plt
+from datetime import datetime, timezone
 import glob
 
 def create_features(archive_manager,
@@ -265,15 +265,19 @@ def create_features(archive_manager,
 
 if __name__ == "__main__":
     #print(dir(rtseis.PostProcessing.Waveform))
-    archive_dir = '/uufs/chpc.utah.edu/common/home/koper-group1/bbaker/waveformArchive/archives/'
+    archive_dir = '/uufs/chpc.utah.edu/common/home/koper-group4/bbaker/waveformArchive/archives/'
     h5_archive_files = glob.glob(archive_dir + '/archive_????.h5')
-    arrival_catalog_3c = 'currentEarthquakeArrivalInformation3CWithGains.csv'
+    catalog_dir = '/uufs/chpc.utah.edu/common/home/koper-group3/alysha/ben_catalogs/20220728'
+    arrival_catalog_3c = f'{catalog_dir}/currentEarthquakeArrivalInformation3CWithGains.csv'
+    startdate = datetime(2022, 1, 1, tzinfo=timezone.utc).timestamp()
+    print(f'Using events occuring on or after {startdate}')
 
     print("Loading arrival catalog...")
     arrival_catalog_df = pd.read_csv(arrival_catalog_3c, dtype = {'location' : object})
     # Regress on Ml for S waves
     arrival_catalog_df = arrival_catalog_df[ (arrival_catalog_df.phase == 'S') &
-                                             (arrival_catalog_df.magnitude_type == 'l') ]
+                                             (arrival_catalog_df.magnitude_type == 'l') &
+                                             (arrival_catalog_df.origin_time >= startdate) ]
     # Focus on Yellowstone
     arrival_catalog_df = arrival_catalog_df[ (arrival_catalog_df.event_lat > 44) &
                                              (arrival_catalog_df.event_lat < 45.167) &
@@ -287,4 +291,4 @@ if __name__ == "__main__":
     create_features(archive_manager,
                     arrival_catalog_df,
                     magnitude_type = 'l',
-                    output_file = 's_features.csv')
+                    output_file = 'data/features/s_features.2022.csv')
