@@ -183,4 +183,4 @@ if __name__ == "__main__":
 
     create_features(archive_manager, arrival_catalog_df,
                     magnitude_type = 'l',
-                    output_file = 'data/features/p_features.2022.csv')
+                    output_file = '../data/features/p_features.2022.csv')

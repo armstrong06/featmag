@@ -1,7 +1,7 @@
 import pandas as pd
 import numpy as np
 import os
-from features import SplitFeatures as sf
+from src.features import SplitFeatures as sf
 
 # Do P and S at the same time to ensure they have the same event split
 train_frac = 0.8
@@ -10,12 +10,13 @@ s_min_train = 150
 outdir = '/uufs/chpc.utah.edu/common/home/koper-group3/alysha/magnitudes/feature_splits'
 
 # Read files in 
-p_feats = pd.read_csv('data/features/p_features.csv')
-s_feats = pd.read_csv('data/features/s_features.csv')
-p_feats_2022 = pd.read_csv('data/features/p_features.2022.csv')
-s_feats_2022 = pd.read_csv('data/features/s_features.2022.csv')
+data_path = '../data'
+p_feats = pd.read_csv(f'{data_path}/features/p_features.csv')
+s_feats = pd.read_csv(f'{data_path}/features/s_features.csv')
+p_feats_2022 = pd.read_csv(f'{data_path}/features/p_features.2022.csv')
+s_feats_2022 = pd.read_csv(f'{data_path}/features/s_features.2022.csv')
 
-ev_cat = pd.read_csv('data/catalogs/yellowstone.events.ypml-v5.2023.csv')
+ev_cat = pd.read_csv(f'{data_path}/catalogs/yellowstone.events.ypml-v5.2023.csv')
 ev_cat['Date'] = pd.to_datetime(ev_cat['Date'], format='mixed')
 
 sf.print_feature_df_event_counts(p_feats, "P", ev_cat)
