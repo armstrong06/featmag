@@ -103,8 +103,36 @@ class GatherFeatureDatasets():
         print(f'X shape: {X.shape}, y shape: {y.shape}')
 
         return X, y, scaler, feature_names
-    
+
+    def process_all_stations_datasets(self, 
+                                        train_df, 
+                                        test_df,
+                                        holdout_df = None,
+                                        freq_max=18,
+                                        scaler = True,
+                                        source_dist_type='all',
+                                        linear_model = True,
+                                        target_column = 'Event-Mean-YPML-S'):
+        all_station_features_dict = {}
+        feature_names = None
+        for station in train_df['station'].unique():
+            station_dict, stat_feat_names = self.process_station_datasets(station, 
+                                                                        train_df, 
+                                                                        test_df,
+                                                                        holdout_df = None,
+                                                                        freq_max=18,
+                                                                        scaler = True,
+                                                                        source_dist_type='all',
+                                                                        linear_model = True,
+                                                                        target_column = 'Event-Mean-YPML-S')
+            all_station_features_dict[station] = station_dict
+            if feature_names is None:
+                feature_names = stat_feat_names
+
+        return all_station_features_dict, feature_names
+
     def process_station_datasets(self, 
+                                 station,
                                  train_df, 
                                  test_df,
                                  holdout_df = None,
@@ -113,50 +141,71 @@ class GatherFeatureDatasets():
                                 source_dist_type='all',
                                 linear_model = True,
                                 target_column = 'Event-Mean-YPML-S'):
-        station_feature_dict = {}
-        for station in train_df['station'].unique():
-            print(station)
-            strain = self.filter_by_station(train_df, station)
-            s_X_train, s_y_train, s_scaler, feature_names = self.get_X_y(strain, 
-                                                        freq_max=freq_max,
-                                                        scaler = scaler,
-                                                        source_dist_type=source_dist_type,
-                                                        linear_model = linear_model,
-                                                        target_column=target_column)
-            
-            stest = self.filter_by_station(test_df, station)
-            s_X_test, s_y_test, _, _ = self.get_X_y(stest, 
-                                                    scaler=s_scaler,
+        print(station)
+        strain = self.filter_by_station(train_df, station)
+        s_X_train, s_y_train, s_scaler, feature_names = self.get_X_y(strain, 
                                                     freq_max=freq_max,
+                                                    scaler = scaler,
                                                     source_dist_type=source_dist_type,
                                                     linear_model = linear_model,
                                                     target_column=target_column)
-            stat_dict =  {'scaler':s_scaler,
-                            'X_train':s_X_train,
-                            'y_train':s_y_train,
-                            'evids_train':strain['Evid'],
-                            'X_test':s_X_test,
-                            'y_test':s_y_test,
-                            'evids_test':stest['Evid']}
+        
+        stest = self.filter_by_station(test_df, station)
+        s_X_test, s_y_test, _, _ = self.get_X_y(stest, 
+                                                scaler=s_scaler,
+                                                freq_max=freq_max,
+                                                source_dist_type=source_dist_type,
+                                                linear_model = linear_model,
+                                                target_column=target_column)
+        stat_dict =  {'scaler':s_scaler,
+                        'X_train':s_X_train,
+                        'y_train':s_y_train,
+                        'evids_train':strain['Evid'],
+                        'X_test':s_X_test,
+                        'y_test':s_y_test,
+                        'evids_test':stest['Evid']}
 
-            if holdout_df is not None:
-                X_holdout, y_holdout = None, None
-                if station in holdout_df['station'].unique():
-                    sholdout = self.filter_by_station(holdout_df, station)
-                    X_holdout, y_holdout, _, _ = self.get_X_y(sholdout, 
-                                                    scaler=s_scaler,
-                                                    freq_max=freq_max,
-                                                    source_dist_type=source_dist_type,
-                                                    linear_model = linear_model,
-                                                    target_column=target_column)
-                stat_dict['X_holdout'] = X_holdout
-                stat_dict['y_holdout'] = y_holdout
-                stat_dict['evids_holdout'] = sholdout['Evid']
-
-            station_feature_dict[station] = stat_dict
+        if holdout_df is not None:
+            X_holdout, y_holdout = None, None
+            if station in holdout_df['station'].unique():
+                sholdout = self.filter_by_station(holdout_df, station)
+                X_holdout, y_holdout, _, _ = self.get_X_y(sholdout, 
+                                                scaler=s_scaler,
+                                                freq_max=freq_max,
+                                                source_dist_type=source_dist_type,
+                                                linear_model = linear_model,
+                                                target_column=target_column)
+            stat_dict['X_holdout'] = X_holdout
+            stat_dict['y_holdout'] = y_holdout
+            stat_dict['evids_holdout'] = sholdout['Evid']
             
-        return station_feature_dict, feature_names
+        return stat_dict, feature_names
     
+    def process_station_split(self,
+                              split_name,
+                              station,  
+                              df, 
+                              scaler, 
+                              freq_max, 
+                              source_dist_type, 
+                              linear_model,
+                              target_column):
+        
+            ssplit = self.filter_by_station(df, station)
+            X, y, s_scaler, feature_names = self.get_X_y(ssplit, 
+                                                            scaler=scaler,
+                                                            freq_max=freq_max,
+                                                            source_dist_type=source_dist_type,
+                                                            linear_model = linear_model,
+                                                            target_column=target_column)
+            stat_dict = {
+                f'X_{split_name}': X,
+                f'y_{split_name}': y,
+                f'evids_{split_name}': ssplit['Evid'],
+            }
+
+            return stat_dict, s_scaler, feature_names
+
     @staticmethod
     def filter_station_dict_features(station_feature_dict,
                                     all_feature_col_names, 

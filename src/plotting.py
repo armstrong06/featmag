@@ -51,3 +51,29 @@ class FeaturePlots():
         sns.heatmap(corr, mask=mask, cmap=cmap, vmax=1, vmin=-1, center=0,
                     square=True, linewidths=.5, cbar_kws={"shrink": .5},
                     yticklabels=1, xticklabels=xticklabels).set_title(title)
+
+    def plot_r2_heatmap(gs_results, 
+                        C_range, 
+                        gamma_range, 
+                        opt_ind, 
+                        station,
+                        outdir=None):
+        scores = gs_results.cv_results_["mean_test_score"].reshape(len(C_range), len(gamma_range))
+        fig, ax = plt.subplots()
+        mappable = ax.imshow(scores,
+                interpolation="nearest",
+                cmap=plt.cm.hot,
+        )
+        best_ind = np.unravel_index(np.argmax(scores, axis=None), scores.shape)
+        opt_ind2d = np.unravel_index(opt_ind, scores.shape)
+        ax.scatter(best_ind[1], best_ind[0], marker='*', color='k', label='Best Model')
+        ax.scatter(opt_ind2d[1], opt_ind2d[0],marker='*', color='blue', label='Selected Model')
+        ax.set_xlabel("log gamma")
+        ax.set_ylabel("log C")
+        fig.colorbar(mappable, label=r"Mean $R^2$")
+        ax.set_xticks(np.arange(len(gamma_range)), np.log10(gamma_range), rotation=45)
+        ax.set_yticks(np.arange(len(C_range)), np.log10(C_range))
+        ax.set_title(f'{station} CV Results')
+        ax.legend(handletextpad=0.2, borderpad=0.2, handlelength=1.0)
+        if outdir is not None:
+            fig.savefig(os.path.join(outdir, f'{station}.r2.cvheatmap.png'), dpi=300)
