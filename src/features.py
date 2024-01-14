@@ -180,6 +180,7 @@ class SelectPFeatures():
     def process_station_datasets(self, 
                                  train_df, 
                                  test_df,
+                                 holdout_df = None,
                                 freq_max=18,
                                 scaler = True,
                                 source_dist_type='all',
@@ -203,12 +204,29 @@ class SelectPFeatures():
                                                     source_dist_type=source_dist_type,
                                                     linear_model = linear_model,
                                                     target_column=target_column)
+            stat_dict =  {'scaler':s_scaler,
+                            'X_train':s_X_train,
+                            'y_train':s_y_train,
+                            'evids_train':strain['Evid'],
+                            'X_test':s_X_test,
+                            'y_test':s_y_test,
+                            'evids_test':stest['Evid']}
 
-            station_feature_dict[station] = {'X_train':s_X_train,
-                                            'y_train':s_y_train,
-                                            'scaler':s_scaler,
-                                            'X_test':s_X_test,
-                                            'y_test':s_y_test}
+            if holdout_df is not None:
+                X_holdout, y_holdout = None, None
+                if station in holdout_df['station'].unique():
+                    sholdout = self.filter_by_station(holdout_df, station)
+                    X_holdout, y_holdout, _, _ = self.get_X_y(sholdout, 
+                                                    scaler=s_scaler,
+                                                    freq_max=freq_max,
+                                                    source_dist_type=source_dist_type,
+                                                    linear_model = linear_model,
+                                                    target_column=target_column)
+                stat_dict['X_holdout'] = X_holdout
+                stat_dict['y_holdout'] = y_holdout
+                stat_dict['evids_holdout'] = sholdout['Evid']
+
+            station_feature_dict[station] = stat_dict
             
         return station_feature_dict, feature_names
 
@@ -221,18 +239,30 @@ class SelectPFeatures():
                     'Subset column names must be in the existing column names'
             
             feature_subset_cols = np.where(np.isin(all_feature_col_names, subset_feature_col_names))[0]
-
             filtered_station_feature_dict = {}
             for station in station_feature_dict.keys():
                     print(station)
                     s_dict = station_feature_dict[station]
                     s_X_train = s_dict['X_train'][:, feature_subset_cols]
                     s_X_test = s_dict['X_test'][:, feature_subset_cols]
-                    print(f'X_train: {s_X_train.shape}, X_test: {s_X_test.shape}')
-                    filtered_station_feature_dict[station] = {'X_train':s_X_train,
-                                                    'y_train':s_dict['y_train'],
-                                                    'X_test':s_X_test,
-                                                    'y_test':s_dict['y_test']}
+                    stat_dict = {'X_train':s_X_train,
+                                'y_train':s_dict['y_train'],
+                                'X_test':s_X_test,
+                                'y_test':s_dict['y_test']}
+                    if 'X_holdout' in s_dict.keys():
+                        s_X_holdout = None
+                        holdout_shape =0 
+                        if s_dict['X_holdout'] is not None:
+                            s_X_holdout = s_dict['X_holdout'][:, feature_subset_cols]
+                            holdout_shape = s_X_holdout.shape
+                        stat_dict['X_holdout'] = s_X_holdout
+                        stat_dict['y_holdout'] = s_dict['y_holdout']
+                        print(f'X_train: {s_X_train.shape}, X_test: {s_X_test.shape}, X_holdout: {holdout_shape}')
+
+                    else:
+                        print(f'X_train: {s_X_train.shape}, X_test: {s_X_test.shape}')
+
+                    filtered_station_feature_dict[station] = stat_dict
 
             return filtered_station_feature_dict, all_feature_col_names[feature_subset_cols]
 
@@ -360,6 +390,14 @@ class SelectPFeatures():
         return cv_mean, cv_std, params
     
     @staticmethod
+    def get_cv_results_from_ind(gs_results, ind):
+        params = gs_results.cv_results_['params'][ind]
+        cv_mean = gs_results.cv_results_['mean_test_score'][ind]
+        cv_std = gs_results.cv_results_['std_test_score'][ind]
+
+        return cv_mean, cv_std, params
+    
+    @staticmethod
     def get_estimator_importance_getter(estimator_model):
         """Make the importance_getter argument for RFECV given the estimator model type"""
         # Do RFECV to select the optimal number of features
@@ -391,6 +429,50 @@ class SelectPFeatures():
             assert ~np.array_equal(Xt[:, ind], X[:, ind]), f'No transform happened for col {ind}'
         return Xt
 
+    def setup_cv(self, 
+                model,
+                param_grid,
+                model_scaler=True,
+                scoring_method='r2',
+                n_jobs=1,
+                cv_folds=5,
+                cv_random_state=2652124, 
+                refit_model=True):
+        
+        cv_inner = KFold(n_splits=cv_folds, 
+                         shuffle=True, 
+                         random_state=cv_random_state)
+        
+        # If the main model needs scaled features, add to the model pipeline (m_pipe)
+        # Can use this pipeline in GridCV and evaluating the final models
+        m_pipe = self.make_simple_pipeline(model, model_scaler)
+        
+        #### Define the grid search ####
+        search = GridSearchCV(m_pipe,
+                            param_grid=param_grid, 
+                            scoring=scoring_method, 
+                            n_jobs=n_jobs, 
+                            cv=cv_inner,
+                            refit=refit_model)
+        
+        return search, cv_inner
+
+    def do_rfecv(self, X, y, pipe, cv, importance_getter=None, scoring_method='r2', n_jobs=1):
+        # Do RFECV to select the optimal number of features
+        rfe = RFECV(pipe,
+                    cv=cv, 
+                    scoring=scoring_method,
+                    n_jobs=n_jobs,
+                    importance_getter=importance_getter)
+        
+        rfe.fit(X, y)
+
+        # Get the best features from the RFECV
+        n_feats = rfe.n_features_
+        best_feats = rfe.support_
+
+        return n_feats, best_feats
+    
     def nested_rfecv(self,
                      X,
                     y, 
@@ -438,8 +520,17 @@ class SelectPFeatures():
         """
 
         cv_outer = RepeatedKFold(n_splits=cv_folds_outer, n_repeats=n_outer_repeats, random_state=cv_random_state)
-        cv_inner = KFold(n_splits=cv_folds_inner, shuffle=True, random_state=cv_random_state)
+        # cv_inner = KFold(n_splits=cv_folds_inner, shuffle=True, random_state=cv_random_state)
 
+        search, cv_inner = self.setup_cv(model,
+                                                          param_grid,
+                                                          model_scaler=model_scaler,
+                                                          scoring_method=scoring_method,
+                                                          n_jobs=n_jobs,
+                                                          cv_folds_outer=cv_folds_outer,
+                                                          cv_folds_inner=cv_folds_inner,
+                                                          n_outer_repeats=n_outer_repeats,
+                                                          cv_random_state=cv_random_state)
 
         ### Lists to store the results of outer loop
         # Store results of cross-validation and the best model when 
@@ -468,17 +559,17 @@ class SelectPFeatures():
         # Each fold in RFECV should be scaled independently
         s_pipe = self.make_simple_pipeline(estimator_model, estimator_scaler)
 
-        # If the main model needs scaled features, add to the model pipeline (m_pipe)
-        # Can use this pipeline in GridCV and evaluating the final models
-        m_pipe = self.make_simple_pipeline(model, model_scaler)
+        # # If the main model needs scaled features, add to the model pipeline (m_pipe)
+        # # Can use this pipeline in GridCV and evaluating the final models
+        # m_pipe = self.make_simple_pipeline(model, model_scaler)
         
-        #### Define the grid search ####
-        search = GridSearchCV(m_pipe,
-                            param_grid=param_grid, 
-                            scoring=scoring_method, 
-                            n_jobs=n_jobs, 
-                            cv=cv_inner,
-                            refit=True)
+        # #### Define the grid search ####
+        # search = GridSearchCV(m_pipe,
+        #                     param_grid=param_grid, 
+        #                     scoring=scoring_method, 
+        #                     n_jobs=n_jobs, 
+        #                     cv=cv_inner,
+        #                     refit=True)
         
         start_outer = time.time()
         for i, data in enumerate(cv_outer.split(X)):
@@ -490,22 +581,18 @@ class SelectPFeatures():
             y_train, y_test = y[train_ix], y[test_ix]
 
             # Do RFECV to select the optimal number of features
-            importance_getter = self.get_estimator_importance_getter(estimator_model)
+            X_rfecv = X_train
+            if estimator_feats_transforms:
+                X_rfecv = self.apply_feats_transforms(X_train, estimator_feats_transforms)
 
-            rfe = RFECV(s_pipe,
-                        cv=cv_inner, 
-                        scoring=scoring_method,
-                        n_jobs=n_jobs,
-                        importance_getter=importance_getter)
+            n_feats, best_feats = self.do_rfecv(X_rfecv, 
+                                                y_train, 
+                                                s_pipe, 
+                                                cv_inner, 
+                                                importance_getter=self.get_estimator_importance_getter(estimator_model),
+                                                scoring_method=scoring_method,
+                                                n_jobs=n_jobs)
             
-            if estimator_feats_transforms is None:
-                rfe.fit(X_train, y_train)
-            else:
-                rfe.fit(self.apply_feats_transforms(X_train, estimator_feats_transforms), y_train)
-
-            # Get the best features from the RFECV
-            n_feats = rfe.n_features_
-            best_feats = rfe.support_
             outer_kept_feats.append(best_feats)
             outer_n_feats.append(n_feats)
             
