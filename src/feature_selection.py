@@ -161,10 +161,9 @@ class RFE:
                                          model_scaler=model_scaler,
                                          scoring_method=scoring_method,
                                          n_jobs=n_jobs,
-                                         cv_folds_outer=cv_folds_outer,
-                                         cv_folds_inner=cv_folds_inner,
-                                         n_outer_repeats=n_outer_repeats,
-                                         cv_random_state=cv_random_state)
+                                         cv_folds=cv_folds_inner,
+                                         cv_random_state=cv_random_state,
+                                         refit_model=True)
 
         # Lists to store the results of outer loop
         # Store results of cross-validation and the best model when

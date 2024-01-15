@@ -4,6 +4,10 @@ from sklearn.pipeline import Pipeline
 from sklearn.model_selection import RepeatedKFold, KFold, GridSearchCV
 from sklearn.preprocessing import StandardScaler
 
+def write_dict_to_json(filename, wdict):
+    print('Writing', filename)
+    with open(filename, 'w') as fp:
+        json.dump(wdict, fp, indent=4, cls=NumpyEncoder)
 
 class NumpyEncoder(json.JSONEncoder):
     def default(self, obj):
