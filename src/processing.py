@@ -2,6 +2,7 @@ from sklearn.model_selection import train_test_split
 import numpy as np
 from sklearn.preprocessing import StandardScaler
 
+
 class TrainTestSplit():
 
     def print_feature_df_event_counts(phase_df, phase, ev_df):
@@ -9,72 +10,85 @@ class TrainTestSplit():
 {len(phase_df)} arrivals in the {phase.upper()} feature catalog between \
 {ev_df[ev_df['Evid'].isin(phase_df['event_identifier'].unique())]['Date'].min()} and \
 {ev_df[ev_df['Evid'].isin(phase_df['event_identifier'].unique())]['Date'].max()}")
-        
+
     def get_feature_event_info(feature_df, event_df, phase='P', include_ev_col=None):
-        evs = event_df[event_df['Evid'].isin(feature_df['event_identifier'].unique())].sort_values('Date')
+        evs = event_df[event_df['Evid'].isin(
+            feature_df['event_identifier'].unique())].sort_values('Date')
         print(f"{phase} event count: {evs.shape[0]}")
         return evs
 
     def date_train_test_split(ev_df, train_cutoff):
         train_evids = ev_df[ev_df['Date'] < train_cutoff]['Evid']
-        test_evids =  ev_df[ev_df['Date'] >= train_cutoff]['Evid']
+        test_evids = ev_df[ev_df['Date'] >= train_cutoff]['Evid']
         return train_evids, test_evids
-        
+
     def evid_train_test_split(ev_df, time_cutoff=None, train_frac=0.8, random_state=843823):
         if time_cutoff is not None:
             ev_df = ev_df[ev_df['Date'] < time_cutoff]
-        train_evids, test_evids = train_test_split(ev_df['Evid'].unique(), test_size=1-train_frac, train_size=train_frac, random_state=random_state)
+        train_evids, test_evids = train_test_split(ev_df['Evid'].unique(
+        ), test_size=1-train_frac, train_size=train_frac, random_state=random_state)
 
         return train_evids, test_evids
 
     def get_features_by_evid(feature_df, train_evids, test_evids):
-        train_feats = feature_df[feature_df['event_identifier'].isin(train_evids)]
-        test_feats = feature_df[feature_df['event_identifier'].isin(test_evids)]
+        train_feats = feature_df[feature_df['event_identifier'].isin(
+            train_evids)]
+        test_feats = feature_df[feature_df['event_identifier'].isin(
+            test_evids)]
 
         return train_feats, test_feats
 
     def print_split_percentage(split_evids, all_evids, split_type='Train', phase='P'):
-        print(f"{phase} {split_type} size: {(split_evids.shape[0]/all_evids.shape[0])*100:0.2f} %")
+        print(
+            f"{phase} {split_type} size: {(split_evids.shape[0]/all_evids.shape[0])*100:0.2f} %")
 
     def get_station_train_test_counts(feats_train_df, feats_test_df):
         return feats_train_df.groupby('station')['station'].count().rename('cnt').reset_index().merge(feats_test_df.groupby('station')['station'].count().rename('cnt').reset_index(),
-                                                                                        how='outer', on='station').sort_values('cnt_x', ascending=False).rename(columns={'cnt_x':'cnt_train',
-                                                                                                                                                                        'cnt_y':'cnt_test'})
+                                                                                                      how='outer', on='station').sort_values('cnt_x', ascending=False).rename(columns={'cnt_x': 'cnt_train',
+                                                                                                                                                                                       'cnt_y': 'cnt_test'})
+
     def compute_min_test_examples(min_train, train_frac, phase='P'):
         frac = round((1-train_frac)/train_frac, 2)
-        min_test =  round(min_train*frac)
+        min_test = round(min_train*frac)
         print(f"{phase} train min: {min_train}, test min: {min_test}, total example min: {min_test+min_train}")
         return min_test
 
     def get_stations_with_min_examples(counts_df, min_train, min_test, phase='P'):
-        filtered_df = counts_df[(counts_df['cnt_train'] > min_train) & (counts_df['cnt_test'] > min_test)]
-        print(f"{phase} stations meeting the min. criteria: {filtered_df.shape[0]}")
+        filtered_df = counts_df[(counts_df['cnt_train'] > min_train) & (
+            counts_df['cnt_test'] > min_test)]
+        print(
+            f"{phase} stations meeting the min. criteria: {filtered_df.shape[0]}")
         return filtered_df
 
     def get_stations_close_to_criteria(counts_df, min_train, min_test, phase='P'):
         filtered_df = counts_df[(np.nansum([counts_df['cnt_train'], counts_df['cnt_test']], axis=0) > (min_test+min_train)) &
-                            ((counts_df['cnt_test'] < min_test) | np.isnan(counts_df['cnt_test']) | (counts_df['cnt_train'] < min_train))]
-        print(f"{phase} stations close to min. criteria: {filtered_df.shape[0]}")
+                                ((counts_df['cnt_test'] < min_test) | np.isnan(counts_df['cnt_test']) | (counts_df['cnt_train'] < min_train))]
+        print(
+            f"{phase} stations close to min. criteria: {filtered_df.shape[0]}")
         return filtered_df
 
     def get_station_feature_time_span(feats_df, station_df, evid_df):
         return feats_df[feats_df.station.isin(station_df['station'])].groupby('station').apply(lambda x: evid_df[evid_df['Evid'].isin(x['event_identifier'])]['Date'].describe().loc[['min', 'max']])
 
-
     def add_YP21_magnitude_to_features(feature_df, event_df, phase='P'):
         original_feature_cnt = feature_df.shape[0]
         original_ev_count = feature_df['event_identifier'].unique().shape[0]
-        feature_df = feature_df.merge(event_df[['Evid', 'Event-Mean-YPML-S']], how='inner', left_on='event_identifier', right_on='Evid')
+        feature_df = feature_df.merge(
+            event_df[['Evid', 'Event-Mean-YPML-S']], how='inner', left_on='event_identifier', right_on='Evid')
         assert ~np.any(np.isnan(feature_df['Event-Mean-YPML-S']))
         assert ~np.any(np.isnan(feature_df['arrival_identifier']))
-        print(f"The original number of {phase} features: {original_feature_cnt} ({original_ev_count} events) \nThe number of {phase} features with a YP21 mag: {feature_df.shape[0]} ({feature_df['event_identifier'].unique().shape[0]} events)")
+        print(
+            f"The original number of {phase} features: {original_feature_cnt} ({original_ev_count} events) \nThe number of {phase} features with a YP21 mag: {feature_df.shape[0]} ({feature_df['event_identifier'].unique().shape[0]} events)")
         return feature_df
 
     def filter_feature_stations(features_df, station_df, phase='P'):
-        features_filt = features_df[features_df['station'].isin(station_df['station'])]
-        print(f"Original {phase} size: {features_df.shape[0]} ({features_df['station'].unique().shape[0]} stations) \nFiltered {phase} size: {features_filt.shape[0]} ({features_filt['station'].unique().shape[0]} stations)")
+        features_filt = features_df[features_df['station'].isin(
+            station_df['station'])]
+        print(
+            f"Original {phase} size: {features_df.shape[0]} ({features_df['station'].unique().shape[0]} stations) \nFiltered {phase} size: {features_filt.shape[0]} ({features_filt['station'].unique().shape[0]} stations)")
         return features_filt
-    
+
+
 class GatherFeatureDatasets():
     def __init__(self, is_p) -> None:
         if is_p:
@@ -84,19 +98,19 @@ class GatherFeatureDatasets():
 
         self.compute_feature_matrix = self.feature_maker.compute_feature_matrix
 
-    def get_X_y(self, 
+    def get_X_y(self,
                 df,
                 freq_max=18,
-                scaler = True,
+                scaler=True,
                 source_dist_type='dist',
-                linear_model = True,
-                target_column = 'Event-Mean-YPML-S'):
-    
-        X, scaler, feature_names = self.compute_feature_matrix(df, 
-                                                        freq_max=freq_max,
-                                                        scaler = scaler,
-                                                        source_dist_type=source_dist_type,
-                                                        linear_model = linear_model)
+                linear_model=True,
+                target_column='Event-Mean-YPML-S'):
+
+        X, scaler, feature_names = self.compute_feature_matrix(df,
+                                                               freq_max=freq_max,
+                                                               scaler=scaler,
+                                                               source_dist_type=source_dist_type,
+                                                               linear_model=linear_model)
         y = df[target_column].values
 
         assert X.shape[0] == y.shape[0], 'X size does not match y size'
@@ -104,142 +118,153 @@ class GatherFeatureDatasets():
 
         return X, y, scaler, feature_names
 
-    def process_all_stations_datasets(self, 
-                                        train_df, 
-                                        test_df,
-                                        holdout_df = None,
-                                        freq_max=18,
-                                        scaler = True,
-                                        source_dist_type='all',
-                                        linear_model = True,
-                                        target_column = 'Event-Mean-YPML-S'):
+    def process_all_stations_datasets(self,
+                                      train_df,
+                                      test_df,
+                                      holdout_df=None,
+                                      freq_max=18,
+                                      scaler=True,
+                                      source_dist_type='all',
+                                      linear_model=True,
+                                      target_column='Event-Mean-YPML-S'):
         all_station_features_dict = {}
+        all_station_meta_dict = {}
+
         feature_names = None
         for station in train_df['station'].unique():
-            station_dict, stat_feat_names = self.process_station_datasets(station, 
-                                                                        train_df, 
-                                                                        test_df,
-                                                                        holdout_df = None,
-                                                                        freq_max=18,
-                                                                        scaler = True,
-                                                                        source_dist_type='all',
-                                                                        linear_model = True,
-                                                                        target_column = 'Event-Mean-YPML-S')
-            all_station_features_dict[station] = station_dict
+            feat_dict, meta_dict, stat_feat_names = self.process_station_datasets(station,
+                                                                          train_df,
+                                                                          test_df,
+                                                                          holdout_df=holdout_df,
+                                                                          freq_max=freq_max,
+                                                                          scaler=scaler,
+                                                                          source_dist_type=source_dist_type,
+                                                                          linear_model=linear_model,
+                                                                          target_column=target_column)
+            all_station_features_dict[station] = feat_dict
+            all_station_meta_dict[station] = meta_dict
+
             if feature_names is None:
                 feature_names = stat_feat_names
 
-        return all_station_features_dict, feature_names
+        return all_station_features_dict, all_station_meta_dict, feature_names
 
-    def process_station_datasets(self, 
+    def process_station_datasets(self,
                                  station,
-                                 train_df, 
+                                 train_df,
                                  test_df,
-                                 holdout_df = None,
-                                freq_max=18,
-                                scaler = True,
-                                source_dist_type='all',
-                                linear_model = True,
-                                target_column = 'Event-Mean-YPML-S'):
+                                 holdout_df=None,
+                                 freq_max=18,
+                                 scaler=True,
+                                 source_dist_type='all',
+                                 linear_model=True,
+                                 target_column='Event-Mean-YPML-S'):
         print(station)
         strain = self.filter_by_station(train_df, station)
-        s_X_train, s_y_train, s_scaler, feature_names = self.get_X_y(strain, 
-                                                    freq_max=freq_max,
-                                                    scaler = scaler,
-                                                    source_dist_type=source_dist_type,
-                                                    linear_model = linear_model,
-                                                    target_column=target_column)
-        
+        s_X_train, s_y_train, s_scaler, feature_names = self.get_X_y(strain,
+                                                                     freq_max=freq_max,
+                                                                     scaler=scaler,
+                                                                     source_dist_type=source_dist_type,
+                                                                     linear_model=linear_model,
+                                                                     target_column=target_column)
+
         stest = self.filter_by_station(test_df, station)
-        s_X_test, s_y_test, _, _ = self.get_X_y(stest, 
+        s_X_test, s_y_test, _, _ = self.get_X_y(stest,
                                                 scaler=s_scaler,
                                                 freq_max=freq_max,
                                                 source_dist_type=source_dist_type,
-                                                linear_model = linear_model,
+                                                linear_model=linear_model,
                                                 target_column=target_column)
-        stat_dict =  {'scaler':s_scaler,
-                        'X_train':s_X_train,
-                        'y_train':s_y_train,
-                        'evids_train':strain['Evid'],
-                        'X_test':s_X_test,
-                        'y_test':s_y_test,
-                        'evids_test':stest['Evid']}
+        feat_dict = {'scaler': s_scaler,
+                     'X_train': s_X_train,
+                     'X_test': s_X_test,
+                    }
+        
+        meta_dict = {'scaler': s_scaler,
+                     'y_train': s_y_train,
+                     'evids_train': strain['Evid'],
+                     'y_test': s_y_test,
+                     'evids_test': stest['Evid']}
 
         if holdout_df is not None:
-            X_holdout, y_holdout = None, None
+            X_holdout, y_holdout, evids_holdout = None, None, None
             if station in holdout_df['station'].unique():
                 sholdout = self.filter_by_station(holdout_df, station)
-                X_holdout, y_holdout, _, _ = self.get_X_y(sholdout, 
-                                                scaler=s_scaler,
-                                                freq_max=freq_max,
-                                                source_dist_type=source_dist_type,
-                                                linear_model = linear_model,
-                                                target_column=target_column)
-            stat_dict['X_holdout'] = X_holdout
-            stat_dict['y_holdout'] = y_holdout
-            stat_dict['evids_holdout'] = sholdout['Evid']
-            
-        return stat_dict, feature_names
-    
-    def process_station_split(self,
-                              split_name,
-                              station,  
-                              df, 
-                              scaler, 
-                              freq_max, 
-                              source_dist_type, 
-                              linear_model,
-                              target_column):
-        
-            ssplit = self.filter_by_station(df, station)
-            X, y, s_scaler, feature_names = self.get_X_y(ssplit, 
-                                                            scaler=scaler,
-                                                            freq_max=freq_max,
-                                                            source_dist_type=source_dist_type,
-                                                            linear_model = linear_model,
-                                                            target_column=target_column)
-            stat_dict = {
-                f'X_{split_name}': X,
-                f'y_{split_name}': y,
-                f'evids_{split_name}': ssplit['Evid'],
-            }
+                X_holdout, y_holdout, _, _ = self.get_X_y(sholdout,
+                                                          scaler=s_scaler,
+                                                          freq_max=freq_max,
+                                                          source_dist_type=source_dist_type,
+                                                          linear_model=linear_model,
+                                                          target_column=target_column)
+                evids_holdout = sholdout['Evid']
+            feat_dict['X_holdout'] = X_holdout
+            meta_dict['y_holdout'] = y_holdout
+            meta_dict['evids_holdout'] = evids_holdout
 
-            return stat_dict, s_scaler, feature_names
+        # feat_dict = {station: feat_dict}
+        # meta_dict = {station: meta_dict}
+
+        return feat_dict, meta_dict, feature_names
+
+    # def process_station_split(self,
+    #                           split_name,
+    #                           station,
+    #                           df,
+    #                           scaler,
+    #                           freq_max,
+    #                           source_dist_type,
+    #                           linear_model,
+    #                           target_column):
+
+    #     ssplit = self.filter_by_station(df, station)
+    #     X, y, s_scaler, feature_names = self.get_X_y(ssplit,
+    #                                                  scaler=scaler,
+    #                                                  freq_max=freq_max,
+    #                                                  source_dist_type=source_dist_type,
+    #                                                  linear_model=linear_model,
+    #                                                  target_column=target_column)
+    #     stat_dict = {
+    #         f'X_{split_name}': X,
+    #         f'y_{split_name}': y,
+    #         f'evids_{split_name}': ssplit['Evid'],
+    #     }
+
+    #     return stat_dict, s_scaler, feature_names
 
     @staticmethod
     def filter_station_dict_features(station_feature_dict,
-                                    all_feature_col_names, 
-                                    subset_feature_col_names):
-            assert np.all(np.isin(subset_feature_col_names, all_feature_col_names)),\
-                    'Subset column names must be in the existing column names'
-            
-            feature_subset_cols = np.where(np.isin(all_feature_col_names, subset_feature_col_names))[0]
-            filtered_station_feature_dict = {}
-            for station in station_feature_dict.keys():
-                    print(station)
-                    s_dict = station_feature_dict[station]
-                    s_X_train = s_dict['X_train'][:, feature_subset_cols]
-                    s_X_test = s_dict['X_test'][:, feature_subset_cols]
-                    stat_dict = {'X_train':s_X_train,
-                                'y_train':s_dict['y_train'],
-                                'X_test':s_X_test,
-                                'y_test':s_dict['y_test']}
-                    if 'X_holdout' in s_dict.keys():
-                        s_X_holdout = None
-                        holdout_shape =0 
-                        if s_dict['X_holdout'] is not None:
-                            s_X_holdout = s_dict['X_holdout'][:, feature_subset_cols]
-                            holdout_shape = s_X_holdout.shape
-                        stat_dict['X_holdout'] = s_X_holdout
-                        stat_dict['y_holdout'] = s_dict['y_holdout']
-                        print(f'X_train: {s_X_train.shape}, X_test: {s_X_test.shape}, X_holdout: {holdout_shape}')
+                                     all_feature_col_names,
+                                     subset_feature_col_names):
+        assert np.all(np.isin(subset_feature_col_names, all_feature_col_names)), \
+            'Subset column names must be in the existing column names'
 
-                    else:
-                        print(f'X_train: {s_X_train.shape}, X_test: {s_X_test.shape}')
+        feature_subset_cols = np.where(
+            np.isin(all_feature_col_names, subset_feature_col_names))[0]
+        filtered_station_feature_dict = {}
+        for station in station_feature_dict.keys():
+            print(station)
+            s_dict = station_feature_dict[station]
+            s_X_train = s_dict['X_train'][:, feature_subset_cols]
+            s_X_test = s_dict['X_test'][:, feature_subset_cols]
+            stat_dict = {'X_train': s_X_train,
+                         'X_test': s_X_test,
+                         }
+            if 'X_holdout' in s_dict.keys():
+                s_X_holdout = None
+                holdout_shape = 0
+                if s_dict['X_holdout'] is not None:
+                    s_X_holdout = s_dict['X_holdout'][:, feature_subset_cols]
+                    holdout_shape = s_X_holdout.shape
+                stat_dict['X_holdout'] = s_X_holdout
+                print(
+                    f'X_train: {s_X_train.shape}, X_test: {s_X_test.shape}, X_holdout: {holdout_shape}')
 
-                    filtered_station_feature_dict[station] = stat_dict
+            else:
+                print(f'X_train: {s_X_train.shape}, X_test: {s_X_test.shape}')
 
-            return filtered_station_feature_dict, all_feature_col_names[feature_subset_cols]
+            filtered_station_feature_dict[station] = stat_dict
+
+        return filtered_station_feature_dict, all_feature_col_names[feature_subset_cols]
 
     @staticmethod
     def filter_by_station(df, stat):
@@ -250,23 +275,24 @@ class GatherFeatureDatasets():
 
     def get_feature_plot_names(self, freq_max=18):
         return self.feature_maker.make_feature_plot_names(freq_max=freq_max)
-    
+
+
 class PFeatures():
-    
+
     @staticmethod
     def compute_feature_matrix(df,
-                            freq_max=18,
-                            scaler = True,
-                            source_dist_type='dist',
-                            linear_model = True):
+                               freq_max=18,
+                               scaler=True,
+                               source_dist_type='dist',
+                               linear_model=True):
         # Loosely speaking empirical magnitudes look like:
-        # M = log10(A) + Q(Delta) 
+        # M = log10(A) + Q(Delta)
         # where A is the amplitude and Q a distance dependent correction term.
         # Additionally, een log10 and log amounts to a scalar
         # that a machine can learnthe difference betw.
         # Basically, I'm interested in features that:
         #   (1) Measure size in, potentially, different amplitudes.
-        # different `passbands' deviates from the noise, 
+        # different `passbands' deviates from the noise,
         n_rows = len(df)
         n_columns = 2*freq_max + 9
         if source_dist_type == 'all':
@@ -280,7 +306,7 @@ class PFeatures():
         def amp_ratio(freq, column_names):
             freq = f'{int(freq)}.00'
             column_names.append(f'amp_ratio_{freq[:-3]}')
-            return np.log(df[f'avg_signal_{freq}']) - np.log(df[f'avg_noise_{freq}']) 
+            return np.log(df[f'avg_signal_{freq}']) - np.log(df[f'avg_noise_{freq}'])
 
         for i in range(freq_max):
             X[:, i] = amp_ratio(i+1, column_names)
@@ -289,61 +315,65 @@ class PFeatures():
         def amplitudes(freq, column_names):
             freq = f'{int(freq)}.00'
             column_names.append(f'amp_{freq[:-3]}')
-            return np.log(df[f'avg_signal_{freq}']) 
-        
+            return np.log(df[f'avg_signal_{freq}'])
+
         for j in range(1, freq_max+1):
             X[:, i+j] = amplitudes(j, column_names)
 
         i += j
-        
+
         # Frequency and max amplitude
-        X[:,i+1] = np.log(df['signal_dominant_frequency'])
-        X[:,i+2] = np.log(df['signal_dominant_amplitude'])
+        X[:, i+1] = np.log(df['signal_dominant_frequency'])
+        X[:, i+2] = np.log(df['signal_dominant_amplitude'])
         # X[:,i+3] = np.log(df['noise_dominant_frequency'])
         # X[:,i+4] = np.log(df['noise_dominant_amplitude'])
 
         # Time-based features: Look at max amplitudes of noise/signal
-        X[:,i+3] = np.log(df['noise_maximum_value']  - df['noise_minimum_value'])
-        X[:,i+4] = np.log(df['signal_maximum_value'] - df['signal_minimum_value'])
-        X[:,i+5] = np.log(df['signal_variance'])
-        X[:,i+6] = np.log(df['noise_variance'])
+        X[:, i+3] = np.log(df['noise_maximum_value'] -
+                           df['noise_minimum_value'])
+        X[:, i+4] = np.log(df['signal_maximum_value'] -
+                           df['signal_minimum_value'])
+        X[:, i+5] = np.log(df['signal_variance'])
+        X[:, i+6] = np.log(df['noise_variance'])
 
         # Source/recv distance (take log to flatten this)
-        X[:,i+7] = df['source_depth_km']
+        X[:, i+7] = df['source_depth_km']
 
-        column_names += ['signal_dominant_frequency', 
-                            'signal_dominant_amplitude',
-                            'noise_max_amplitude',
-                            'signal_max_amplitude',
-                            'signal_variance',
-                            'noise_variance',
-                            'source_depth_km' ]
+        column_names += ['signal_dominant_frequency',
+                         'signal_dominant_amplitude',
+                         'noise_max_amplitude',
+                         'signal_max_amplitude',
+                         'signal_variance',
+                         'noise_variance',
+                         'source_depth_km']
 
         if source_dist_type == 'coord':
-            X[:,i+8] = df['source_latitude']
-            X[:,i+9] = df['source_longitude']
+            X[:, i+8] = df['source_latitude']
+            X[:, i+9] = df['source_longitude']
             column_names += ['source_latitude', 'source_longitude']
         elif source_dist_type == 'dist':
-            X[:,i+8] = np.log(df['source_receiver_distance_km'])
+            X[:, i+8] = np.log(df['source_receiver_distance_km'])
             column_names.append('source_receiver_distance_logkm')
             if linear_model:
-                X[:,i+9] = np.sin(df['source_receiver_back_azimuth']*np.pi/180)
+                X[:, i +
+                    9] = np.sin(df['source_receiver_back_azimuth']*np.pi/180)
                 column_names.append('source_receiver_back_azimuth_sine')
             else:
-                X[:,i+9] = df['source_receiver_back_azimuth']
+                X[:, i+9] = df['source_receiver_back_azimuth']
                 column_names.append('source_receiver_back_azimuth_deg')
         elif source_dist_type == 'all':
-            X[:,i+8] = df['source_latitude']
-            X[:,i+9] = df['source_longitude']
-            X[:,i+10] = np.log(df['source_receiver_distance_km'])
-            column_names += ['source_latitude', 
-                                'source_longitude',
-                                'source_receiver_distance_logkm']
+            X[:, i+8] = df['source_latitude']
+            X[:, i+9] = df['source_longitude']
+            X[:, i+10] = np.log(df['source_receiver_distance_km'])
+            column_names += ['source_latitude',
+                             'source_longitude',
+                             'source_receiver_distance_logkm']
             if linear_model:
-                X[:,i+11] = np.sin(df['source_receiver_back_azimuth']*np.pi/180)
+                X[:, i +
+                    11] = np.sin(df['source_receiver_back_azimuth']*np.pi/180)
                 column_names.append('source_receiver_back_azimuth_sine')
             else:
-                X[:,i+11] = df['source_receiver_back_azimuth']
+                X[:, i+11] = df['source_receiver_back_azimuth']
                 column_names.append('source_receiver_back_azimuth_deg')
         else:
             raise ValueError('source_dist_type must be in [dist, coord, all]')
@@ -357,9 +387,9 @@ class PFeatures():
             scaler = scaler.fit(X)
             X = scaler.transform(X)
             return X, scaler, column_names
-        
+
         return X, False, column_names
-    
+
     @staticmethod
     def make_feature_plot_names(freq_max=18):
         # Make list of shorter feature names for plots
@@ -372,20 +402,21 @@ class PFeatures():
             alt_names.append(f'amp. {i+1}')
 
         alt_names += ['sig. dom. freq.', 'sig. dom. amp.',
-        'noise max. amp.', 'sig. max. amp.', 'sig. var.',
-        'noise var.', 'depth', 'lat.', 'long.',
-        'distance', 'back az.']
+                      'noise max. amp.', 'sig. max. amp.', 'sig. var.',
+                      'noise var.', 'depth', 'lat.', 'long.',
+                      'distance', 'back az.']
 
         return alt_names
-    
+
+
 class SFeatures():
-    
+
     @staticmethod
     def compute_feature_matrix(df,
-                            freq_max=18,
-                            scaler = True,
-                            source_dist_type='dist',
-                            linear_model = True):
+                               freq_max=18,
+                               scaler=True,
+                               source_dist_type='dist',
+                               linear_model=True):
         pass
 
     @staticmethod

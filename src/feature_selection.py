@@ -12,9 +12,9 @@ class IntrinsicFeatureSelection():
     pass
 
 
-class RFE():
-    def nested_rfecv(self,
-                     X,
+class RFE:
+    @staticmethod
+    def nested_rfecv(X,
                      y,
                      estimator_model,
                      model,
@@ -63,7 +63,7 @@ class RFE():
             n_splits=cv_folds_outer, n_repeats=n_outer_repeats, random_state=cv_random_state)
         # cv_inner = KFold(n_splits=cv_folds_inner, shuffle=True, random_state=cv_random_state)
 
-        search, cv_inner = self.setup_cv(model,
+        search, cv_inner = CrossValidation.setup_cv(model,
                                          param_grid,
                                          model_scaler=model_scaler,
                                          scoring_method=scoring_method,
@@ -98,7 +98,7 @@ class RFE():
         # If the estimator model needs scaled features, add scaling to the
         # selector pipeline (s_pipe)
         # Each fold in RFECV should be scaled independently
-        s_pipe = self.make_simple_pipeline(estimator_model, estimator_scaler)
+        s_pipe = CrossValidation.make_simple_pipeline(estimator_model, estimator_scaler)
 
         # # If the main model needs scaled features, add to the model pipeline (m_pipe)
         # # Can use this pipeline in GridCV and evaluating the final models
@@ -124,14 +124,14 @@ class RFE():
             # Do RFECV to select the optimal number of features
             X_rfecv = X_train
             if estimator_feats_transforms:
-                X_rfecv = self.apply_feats_transforms(
+                X_rfecv = RFE.apply_feats_transforms(
                     X_train, estimator_feats_transforms)
 
-            n_feats, best_feats = self.do_rfecv(X_rfecv,
+            n_feats, best_feats = RFE.do_rfecv(X_rfecv,
                                                 y_train,
                                                 s_pipe,
                                                 cv_inner,
-                                                importance_getter=self.get_estimator_importance_getter(
+                                                importance_getter=RFE.get_estimator_importance_getter(
                                                     estimator_model),
                                                 scoring_method=scoring_method,
                                                 n_jobs=n_jobs)
@@ -141,9 +141,9 @@ class RFE():
 
             # Do model param. grid search when using all features
             if model_feats_transforms is not None:
-                X_train = self.apply_feats_transforms(
+                X_train = RFE.apply_feats_transforms(
                     X_train, model_feats_transforms)
-                X_test = self.apply_feats_transforms(
+                X_test = RFE.apply_feats_transforms(
                     X_test, model_feats_transforms)
 
             if run_gridsearchcv_all_feats:
@@ -161,7 +161,7 @@ class RFE():
             # Do GridCV using the optimal number of features
             X_train = X_train[:, best_feats]
             X_test = X_test[:, best_feats]
-            gs_results_best, yhat_best = self.do_gridsearchcv(
+            gs_results_best, yhat_best = CrossValidation.do_gridsearchcv(
                 search, X_train, y_train, X_test)
             score_best = score_func(y_test, yhat_best)
             outer_test_score_best.append(score_best)
@@ -198,7 +198,7 @@ class RFE():
         return results_dict
 
     @staticmethod
-    def do_rfecv(f, X, y, pipe, cv, importance_getter=None, scoring_method='r2', n_jobs=1):
+    def do_rfecv(X, y, pipe, cv, importance_getter=None, scoring_method='r2', n_jobs=1):
         # Do RFECV to select the optimal number of features
         rfe = RFECV(pipe,
                     cv=cv,

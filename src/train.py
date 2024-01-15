@@ -1,32 +1,35 @@
 
-from utils import CrossValidation as cv
 import numpy as np
+import pandas as pd
 import joblib
 import os
+from sklearn.metrics import r2_score, mean_squared_error
+
+from src.utils import CrossValidation as cv
 
 
 class TrainStationModel():
     def __init__(self,
                  station,
                  phase,
-                 feature_split_dict) -> None:
+                 feature_split_dict,
+                 split_meta_dict) -> None:
         self.station = station
         self.phase = phase
         self.feature_split_dict = feature_split_dict
-        self.X_train = self.feature_split_dict['X_train']
-        self.y_train = self.feature_split_dict['y_train']
+        self.meta_split_dict = split_meta_dict
 
     def eval_all_splits(self,
                         final_pipeline):
         # Get the datasets
-        X_train = ['X_train']
-        y_train = self.feature_split_dict['y_train']
+        X_train = self.feature_split_dict['X_train']
+        y_train = self.meta_split_dict['y_train']
         X_test = self.feature_split_dict['X_test']
-        y_test = self.feature_split_dict['y_test']
+        y_test = self.meta_split_dict['y_test']
         X_holdout, y_holdout = None, None
         if 'X_holdout' in self.feature_split_dict.keys():
             X_holdout = self.feature_split_dict['X_holdout']
-            y_holdout = self.feature_split_dict['y_holdout']
+            y_holdout = self.meta_split_dict['y_holdout']
 
         results_dict = {}
 
@@ -61,24 +64,24 @@ class TrainStationModel():
                             model_selector_fn=None,
                             model_selector_tol=0):
 
-        gs_results, final_params, results_dict = self.select_hyperparameters(self.X_train,
-                                                                             self.y_train,
-                                                                             search,
+        gs_results, final_params, results_dict = self.select_hyperparameters(search,
                                                                              model_selector_fn,
                                                                              model_selector_tol)
 
         final_pipeline.set_params(**final_params)
-        final_pipeline.fit(self.X_train, self.y_train)
+        final_pipeline.fit(self.feature_split_dict['X_train'], 
+                           self.meta_split_dict['y_train'])
 
-        return final_pipeline, gs_results, results_dict
+        # Don't think I need to return final_pipeline,
+        return gs_results, results_dict
 
     def select_hyperparameters(self,
                                search,
                                model_selector_fn=None,
                                model_selector_tol=0):
 
-        gs_results, results_dict = self.do_hyperparameter_gridsearch(self.X_train,
-                                                                     self.y_train,
+        gs_results, results_dict = self.do_hyperparameter_gridsearch(self.feature_split_dict['X_train'],
+                                                                     self.meta_split_dict['y_train'],
                                                                      search)
         final_params = results_dict['params_best']
         if model_selector_fn is not None:
@@ -103,16 +106,15 @@ class TrainStationModel():
             pass
 
     def save_all_predictions(self,
-                            feature_dict,
-                            all_yhat,
-                            outdir):
+                             all_yhat,
+                             outdir):
 
         yhat_datasets = ['train', 'test', 'holdout']
         for i in range(len(all_yhat)):
             yhat = all_yhat[i]
             name = yhat_datasets[i]
-            self.save_predictions_to_csv(feature_dict[f'evids_{name}'],
-                                         feature_dict[f'y_{name}'],
+            self.save_predictions_to_csv(self.meta_split_dict[f'evids_{name}'],
+                                         self.meta_split_dict[f'y_{name}'],
                                          yhat,
                                          outdir,
                                          self.station,
@@ -122,30 +124,29 @@ class TrainStationModel():
     @staticmethod
     def save_predictions_to_csv(evids, y, yhat, outdir, station, phase, split):
         cols = ['Evid', 'magnitude', 'predicted_magnitude']
-        results = np.concatenate([np.expand_dims(evids, 1), 
-                                    np.expand_dims(y, 1),
-                                    np.expand_dims(yhat, 1)], axis=1)
+        results = np.concatenate([np.expand_dims(evids, 1),
+                                  np.expand_dims(y, 1),
+                                  np.expand_dims(yhat, 1)], axis=1)
         results_df = pd.DataFrame(results, columns=cols)
         results_df["Evid"] = results_df.Evid.astype(int)
-        results_df.to_csv(os.path.join(outdir, f'{station}.{phase}.{split}.preds.csv'), index=False)
+        results_df.to_csv(os.path.join(
+            outdir, f'{station}.{phase}.preds.{split}.csv'), index=False)
 
-
-    @staticmethod
     def format_results_dict(self, train_results_dict, eval_results_dict):
 
         params_best = train_results_dict.pop('params_best')
         for param_key in params_best:
-            train_results_dict[param_key] = params_best[param_key]
+            train_results_dict[f'{param_key.split("__")[1]}_best'] = params_best[param_key]
         try:
             params_opt = train_results_dict.pop('params_sel')
             for param_key in params_opt:
-                train_results_dict[param_key] = params_opt[param_key]
+                train_results_dict[f'{param_key.split("__")[1]}_sel'] = params_opt[param_key]
         except:
             pass
 
         results_dict = train_results_dict | eval_results_dict
         results_dict['station'] = self.station
-        results_dict['phase'] = self.station
+        results_dict['phase'] = self.phase
 
         return results_dict
 
@@ -174,8 +175,8 @@ class TrainStationModel():
         # Find the best cv ind using the model_selector func
         opt_ind = model_selector_fn(gs_results, model_selector_tol)
         # Get the cv results and parameters corresponding to this ind
-        opt_cv_mean, opt_cv_std, opt_params = cv.get_cv_results_from_ind(
-            opt_ind)
+        opt_cv_mean, opt_cv_std, opt_params = cv.get_cv_results_from_ind(gs_results,
+                                                                         opt_ind)
 
         results_dict = {'cv_ind_sel': opt_ind,
                         'cv_mean_sel': opt_cv_mean,
@@ -197,6 +198,7 @@ class TrainStationModel():
 
         return score_r2, score_rmse
 
+class OptModelSelectionMethods:
     @staticmethod
     def select_cv_ind_min_C(gs_results, tol):
         min_C = np.inf
