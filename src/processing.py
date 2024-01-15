@@ -416,9 +416,134 @@ class SFeatures():
                                freq_max=18,
                                scaler=True,
                                source_dist_type='dist',
-                               linear_model=True):
-        pass
+                               linear_model=True,
+                               w_r=0.5,
+                               w_t=0.5):
+        # Loosely speaking empirical magnitudes look like:
+        # M = log10(A) + Q(Delta)
+        # where A is the amplitude and Q a distance dependent correction term.
+        # Additionally, een log10 and log amounts to a scalar
+        # that a machine can learnthe difference betw.
+        # Basically, I'm interested in features that:
+        #   (1) Measure size in, potentially, different amplitudes.
+        # different `passbands' deviates from the noise,
+        n_rows = len(df)
+        n_columns = 2*freq_max + 9
+        if source_dist_type == 'all':
+            n_columns += 2
+        X = np.zeros([n_rows, n_columns])
+
+        column_names = []
+
+        # These are effectively amplitude ratios.  Note,
+        # log(a/b) = log(a) - log(b)
+        def amp_ratio(freq, column_names):
+            freq = f'{int(freq)}.00'
+            column_names.append(f'amp_ratio_{freq[:-3]}')
+            ratio = w_r*(np.log(df[f'radial_avg_signal_{freq}']) - np.log(df[f'radial_avg_noise_{freq}'])) \
+            + w_t*(np.log(df[f'transverse_avg_signal_{freq}']) - np.log(df[f'transverse_avg_noise_{freq}']))
+            return ratio
+
+        for i in range(freq_max):
+            X[:, i] = amp_ratio(i+1, column_names)
+
+        # Look at amplitudes
+        def amplitudes(freq, column_names):
+            freq = f'{int(freq)}.00'
+            column_names.append(f'amp_{freq[:-3]}')
+            amp = w_r*np.log(df[f'radial_avg_signal_{freq}']) \
+                + w_t*np.log(df[f'transverse_avg_signal_{freq}']) 
+            return amp
+        
+        for j in range(1, freq_max+1):
+            X[:, i+j] = amplitudes(j, column_names)
+
+        i += j
+
+        # Frequency and max amplitude
+        X[:, i+1] = w_r*np.log(df['radial_signal_dominant_frequency']) \
+            + w_t*np.log(df['transverse_signal_dominant_frequency'])
+        X[:, i+2] = w_r*np.log(df['radial_signal_dominant_amplitude']) \
+            + w_t*np.log(df['transverse_signal_dominant_amplitude'])
+
+        # Time-based features: Look at max amplitudes of noise/signal
+        X[:, i+3] = w_r*(np.log(df['radial_noise_maximum_value'] - df['radial_noise_minimum_value'])) \
+            + w_t*(np.log(df['transverse_noise_maximum_value'] - df['transverse_noise_minimum_value']))
+        X[:, i+4] = w_r*(np.log(df['radial_signal_maximum_value'] - df['radial_signal_minimum_value'])) \
+            + w_t*(np.log(df['transverse_signal_maximum_value'] - df['transverse_signal_minimum_value']))
+        X[:, i+5] = w_r*np.log(df['radial_signal_variance']) \
+            + w_t*np.log(df['transverse_signal_variance'])
+        X[:, i+6] = w_r*np.log(df['radial_noise_variance']) \
+            + w_t*np.log(df['transverse_noise_variance'])
+
+        # Source/recv distance (take log to flatten this)
+        X[:, i+7] = df['source_depth_km']
+
+        column_names += ['signal_dominant_frequency',
+                         'signal_dominant_amplitude',
+                         'noise_max_amplitude',
+                         'signal_max_amplitude',
+                         'signal_variance',
+                         'noise_variance',
+                         'source_depth_km']
+
+        if source_dist_type == 'coord':
+            X[:, i+8] = df['source_latitude']
+            X[:, i+9] = df['source_longitude']
+            column_names += ['source_latitude', 'source_longitude']
+        elif source_dist_type == 'dist':
+            X[:, i+8] = np.log(df['source_receiver_distance_km'])
+            column_names.append('source_receiver_distance_logkm')
+            if linear_model:
+                X[:, i +
+                    9] = np.sin(df['source_receiver_back_azimuth']*np.pi/180)
+                column_names.append('source_receiver_back_azimuth_sine')
+            else:
+                X[:, i+9] = df['source_receiver_back_azimuth']
+                column_names.append('source_receiver_back_azimuth_deg')
+        elif source_dist_type == 'all':
+            X[:, i+8] = df['source_latitude']
+            X[:, i+9] = df['source_longitude']
+            X[:, i+10] = np.log(df['source_receiver_distance_km'])
+            column_names += ['source_latitude',
+                             'source_longitude',
+                             'source_receiver_distance_logkm']
+            if linear_model:
+                X[:, i +
+                    11] = np.sin(df['source_receiver_back_azimuth']*np.pi/180)
+                column_names.append('source_receiver_back_azimuth_sine')
+            else:
+                X[:, i+11] = df['source_receiver_back_azimuth']
+                column_names.append('source_receiver_back_azimuth_deg')
+        else:
+            raise ValueError('source_dist_type must be in [dist, coord, all]')
+
+        assert len(column_names) == n_columns
+
+        column_names = np.array(column_names)
+        # Standardize features
+        if (scaler):
+            scaler = StandardScaler()
+            scaler = scaler.fit(X)
+            X = scaler.transform(X)
+            return X, scaler, column_names
+
+        return X, False, column_names
 
     @staticmethod
     def make_feature_plot_names(freq_max=18):
-        pass
+        # Make list of shorter feature names for plots
+        alt_names = []
+
+        for i in range(freq_max):
+            alt_names.append(f'ratio {i+1}')
+
+        for i in range(freq_max):
+            alt_names.append(f'amp. {i+1}')
+
+        alt_names += ['sig. dom. freq.', 'sig. dom. amp.',
+                      'noise max. amp.', 'sig. max. amp.', 'sig. var.',
+                      'noise var.', 'depth', 'lat.', 'long.',
+                      'distance', 'back az.']
+
+        return alt_names
