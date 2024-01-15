@@ -32,6 +32,7 @@ def plot_station_feature_box_whisker(df, feature, ylabel=None, sort_counts=True,
 
 def plot_pairwise_correlations(X, y, column_names, title,
                                xticklabels=2):
+    """Followed [this](https://seaborn.pydata.org/examples/many_pairwise_correlations.html) example"""
     df = pd.DataFrame(X, columns=column_names)
     df['magnitude'] = y
 
@@ -40,7 +41,7 @@ def plot_pairwise_correlations(X, y, column_names, title,
     sns.set_theme(style="white")
 
     # Generate a mask for the upper triangle
-    mask = np.trim(np.ones_like(corr, dtype=bool))
+    mask = np.triu(np.ones_like(corr, dtype=bool))
 
     # Set up the matplotlib figure
     f, ax = plt.subplots(figsize=(11, 9))
@@ -90,3 +91,23 @@ def plot_r2_heatmap(gs_results,
         fig.show()
     else:
         plt.close()
+
+def plot_intrinsic_score_box_whisker(dists, title, xlabels, ylabel, sort_col_inds=None):
+    fig1, ax1 = plt.subplots(figsize=(8, 4))
+    ax1.set_title(title)
+    if sort_col_inds is not None:
+        dists = dists[:, sort_col_inds]
+        xlabels = np.array(xlabels)[sort_col_inds]
+    ax1.boxplot(dists);
+    ax1.set_xticks(np.arange(1, len(xlabels)+1), labels=xlabels, rotation=90, fontsize=8);
+    ax1.set_ylabel(ylabel)
+
+def plot_station_intrinsic_score_bar_chart(scores, stat_order, stat, xlabels, ylabel):
+    fig = plt.figure(figsize=(8, 4))
+    s_scores = scores[:, np.where(stat_order == stat)[0][0]]
+    plt.title(stat)
+    plt.bar([i for i in range(len(s_scores))], s_scores)
+    plt.xlim([-1, len(s_scores)])
+    plt.xticks(np.arange(len(s_scores)), labels=xlabels, rotation=90, fontsize=8)
+    plt.ylabel(ylabel)
+    plt.show()

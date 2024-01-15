@@ -1,16 +1,109 @@
 import numpy as np
 import pandas as pd
 from sklearn.model_selection import RepeatedKFold
-from sklearn.feature_selection import RFECV
+from sklearn.feature_selection import RFECV, SelectKBest, f_regression, mutual_info_regression
 from sklearn.metrics import r2_score
 import time
 
-from utils import CrossValidation
+from src.utils import CrossValidation
 
 
 class IntrinsicFeatureSelection():
-    pass
 
+    @staticmethod
+    def f_reg_feature_selection(X, y):
+        # configure to select all features
+        fs = SelectKBest(score_func=f_regression, k='all')
+        # learn relationship from training data
+        fs.fit(X, y)
+        # transform train input data
+        fs.transform(X)
+
+        return fs
+
+    @staticmethod
+    def compute_multiple_station_feature_scores(n_features, 
+                                                stat_feat_dict, 
+                                                stat_meta_dict, 
+                                                fs_method,
+                                                discrete_bool=None):
+        scores = np.full((n_features, len(stat_feat_dict.keys())), -1, dtype=float)
+        station_order = []
+        for i, station in enumerate(stat_feat_dict.keys()):
+            fs_method_args = [stat_feat_dict[station]['X_train'],
+                              stat_meta_dict[station]['y_train']]
+            if discrete_bool is not None:
+                fs_method_args.append(discrete_bool)
+            fs = fs_method(*fs_method_args)
+            scores[:, i] = fs.scores_
+            station_order.append(station)
+        station_order = np.array(station_order)
+        assert np.all(scores > -1)
+        return scores, station_order
+
+    @staticmethod
+    def feature_rankings_for_individual_stations(scores):
+        # Rankings in ascending order (lower number is more important feature)
+        rankings = np.full_like(scores.T, -1, dtype='int')
+        for stat_ind in range(scores.shape[1]):
+            rankings[stat_ind, :] = np.argsort(-1*scores[:, stat_ind])
+
+        return rankings
+
+    @staticmethod
+    def rank_features_across_stations(scores, stat_rankings):
+        feat_rankings = np.full_like(scores, -1, dtype='int')
+        for feat_ind in range(stat_rankings.shape[1]):
+            feat_rankings[feat_ind, :] = np.where(stat_rankings == feat_ind)[1]
+
+        return feat_rankings
+
+    @staticmethod
+    def mutual_reg_feature_selection(X, y):
+        # configure to select all features
+        fs = SelectKBest(score_func=mutual_info_regression, k='all')
+        # learn relationship from training data
+        fs.fit(X, y)
+        # transform train input data
+        fs.transform(X)
+        
+        return fs
+
+    # Function that will use the discrete mask - shouldn't really matter b/c only one
+    # discrete feature
+    @staticmethod
+    def mutual_reg_feature_selection_discrete(X, y, discrete_feature_bool):
+        def mi_discrete_features(X, y):
+            return mutual_info_regression(X, y, discrete_features=discrete_feature_bool)
+
+        # configure to select all features
+        fs = SelectKBest(score_func=mi_discrete_features, k='all')
+        # learn relationship from training data
+        fs.fit(X, y)
+        # transform train input data
+        fs.transform(X)
+        
+        return fs
+
+    @staticmethod
+    def make_discrete_feature_bool(X_train, 
+                                   feature_names,
+                                   discrete_perc_thresh=1):
+        # Make boolean mask of whether features are discrete or not
+        # I don't think this is very important b/c I don't expect signal_dominant_freq to be 
+        # very well correlated anyway. That is the only feature getting set to discrete here. 
+        # I also tried making lat, lon, and depth discrete but then the MI calculation took forever
+        discrete_feat_bool = []
+        for i in range(len(feature_names)):
+            n_uniq = np.unique(X_train[:, i]).shape[0]
+            perc = (n_uniq/X_train.shape[0])*100
+            print(f'{feature_names[i]} {perc:0.2f}')
+            discrete = False
+            if perc < discrete_perc_thresh:
+                discrete = True
+            discrete_feat_bool .append(discrete)
+
+        return discrete_feat_bool
 
 class RFE:
     @staticmethod

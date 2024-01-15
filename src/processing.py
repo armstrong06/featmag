@@ -417,8 +417,7 @@ class SFeatures():
                                scaler=True,
                                source_dist_type='dist',
                                linear_model=True,
-                               w_r=0.5,
-                               w_t=0.5):
+                               w_r=0.5):
         # Loosely speaking empirical magnitudes look like:
         # M = log10(A) + Q(Delta)
         # where A is the amplitude and Q a distance dependent correction term.
@@ -427,6 +426,9 @@ class SFeatures():
         # Basically, I'm interested in features that:
         #   (1) Measure size in, potentially, different amplitudes.
         # different `passbands' deviates from the noise,
+        assert w_r <= 1.0 and w_r >= 0.0, 'w_r is invalid must be in [0, 1]'
+        w_t = 1 - w_r
+
         n_rows = len(df)
         n_columns = 2*freq_max + 9
         if source_dist_type == 'all':
