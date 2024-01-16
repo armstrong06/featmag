@@ -232,6 +232,10 @@ class GatherFeatureDatasets():
     #     return stat_dict, s_scaler, feature_names
 
     @staticmethod
+    def get_feature_subset_correct_order(all_col_names, subset_col_names):
+        return all_col_names[np.where(np.isin(all_col_names, subset_col_names))[0]]
+
+    @staticmethod
     def filter_station_dict_features(station_feature_dict,
                                      all_feature_col_names,
                                      subset_feature_col_names):
@@ -276,6 +280,13 @@ class GatherFeatureDatasets():
     def get_feature_plot_names(self, freq_max=18):
         return self.feature_maker.make_feature_plot_names(freq_max=freq_max)
 
+    def get_feature_names(self,
+                          freq_max=18,
+                            source_dist_type='dist',
+                            linear_model=True):
+        return self.feature_maker.make_feature_names(freq_max=freq_max, 
+                                                     source_dist_type=source_dist_type,
+                                                     linear_model=linear_model)
 
 class PFeatures():
 
@@ -391,7 +402,47 @@ class PFeatures():
         return X, False, column_names
 
     @staticmethod
-    def make_feature_plot_names(freq_max=18):
+    def make_feature_names(freq_max=18,
+                            source_dist_type='dist',
+                            linear_model=True):
+        
+        if source_dist_type not in ['all', 'coord', 'dist']:
+            raise ValueError('source_dist_type must be in [dist, coord, all]')
+        names = []
+
+        for i in range(freq_max):
+            names.append(f'amp_ratio_{i+1}')
+
+        for i in range(freq_max):
+            names.append(f'amp_{i+1}')
+
+        names += ['signal_dominant_frequency',
+                    'signal_dominant_amplitude',
+                    'noise_max_amplitude',
+                    'signal_max_amplitude',
+                    'signal_variance',
+                    'noise_variance',
+                    'source_depth_km']
+        
+        coord_names = ['source_latitude', 'source_longitude']
+        sr_linear = ['source_receiver_distance_logkm', 
+                     'source_receiver_back_azimuth_sine']
+        sr_nonlin = ['source_receiver_distance_logkm', 
+                     'source_receiver_back_azimuth_deg']
+        
+        if source_dist_type == 'coord' or source_dist_type == 'all':
+            names += coord_names
+        
+        if source_dist_type == 'dist' or source_dist_type == 'all':
+            if linear_model:
+                names += sr_linear
+            else:
+                names += sr_nonlin
+
+        return np.array(names)
+
+    @staticmethod
+    def make_feature_plot_names(freq_max=18, source_dist_type='all'):
         # Make list of shorter feature names for plots
         alt_names = []
 
@@ -403,8 +454,13 @@ class PFeatures():
 
         alt_names += ['sig. dom. freq.', 'sig. dom. amp.',
                       'noise max. amp.', 'sig. max. amp.', 'sig. var.',
-                      'noise var.', 'depth', 'lat.', 'long.',
-                      'distance', 'back az.']
+                      'noise var.', 'depth']
+
+        if source_dist_type in ['all', 'coord']:
+            alt_names += ['lat.', 'long.']
+
+        if source_dist_type in ['all', 'dist']:
+            alt_names += ['distance', 'back az.']
 
         return alt_names
 
@@ -533,7 +589,7 @@ class SFeatures():
         return X, False, column_names
 
     @staticmethod
-    def make_feature_plot_names(freq_max=18):
+    def make_feature_plot_names(freq_max=18, source_dist_type='all'):
         # Make list of shorter feature names for plots
         alt_names = []
 
@@ -545,7 +601,52 @@ class SFeatures():
 
         alt_names += ['sig. dom. freq.', 'sig. dom. amp.',
                       'noise max. amp.', 'sig. max. amp.', 'sig. var.',
-                      'noise var.', 'depth', 'lat.', 'long.',
-                      'distance', 'back az.']
+                      'noise var.', 'depth']
+
+        if source_dist_type in ['all', 'coord']:
+            alt_names += ['lat.', 'long.']
+
+        if source_dist_type in ['all', 'dist']:
+            alt_names += ['distance', 'back az.']
 
         return alt_names
+
+    @staticmethod
+    def make_feature_names(freq_max=18,
+                            source_dist_type='dist',
+                            linear_model=True):
+        
+        if source_dist_type not in ['all', 'coord', 'dist']:
+            raise ValueError('source_dist_type must be in [dist, coord, all]')
+        names = []
+
+        for i in range(freq_max):
+            names.append(f'amp_ratio_{i+1}')
+
+        for i in range(freq_max):
+            names.append(f'amp_{i+1}')
+
+        names += ['signal_dominant_frequency',
+                    'signal_dominant_amplitude',
+                    'noise_max_amplitude',
+                    'signal_max_amplitude',
+                    'signal_variance',
+                    'noise_variance',
+                    'source_depth_km']
+        
+        coord_names = ['source_latitude', 'source_longitude']
+        sr_linear = ['source_receiver_distance_logkm', 
+                     'source_receiver_back_azimuth_sine']
+        sr_nonlin = ['source_receiver_distance_logkm', 
+                     'source_receiver_back_azimuth_deg']
+        
+        if source_dist_type == 'coord' or source_dist_type == 'all':
+            names += coord_names
+        
+        if source_dist_type == 'dist' or source_dist_type == 'all':
+            if linear_model:
+                names += sr_linear
+            else:
+                names += sr_nonlin
+
+        return np.array(names)
