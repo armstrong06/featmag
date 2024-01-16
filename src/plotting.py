@@ -3,6 +3,7 @@ import seaborn as sns
 import numpy as np
 import pandas as pd
 import os
+from matplotlib import cm
 
 
 def plot_station_feature_box_whisker(df, feature, ylabel=None, sort_counts=True, thresholds=None, showfliers=True, min_y_line=None):
@@ -111,3 +112,63 @@ def plot_station_intrinsic_score_bar_chart(scores, stat_order, stat, xlabels, yl
     plt.xticks(np.arange(len(s_scores)), labels=xlabels, rotation=90, fontsize=8)
     plt.ylabel(ylabel)
     plt.show()
+
+# From this example https://matplotlib.org/stable/gallery/statistics/customized_violin.html#sphx-glr-gallery-statistics-customized-violin-py
+def get_boxplot_values(vals):
+    q1, median, q3 = np.percentile(vals, [25, 50, 75])
+    ir = (q3 - q1)
+    vals = np.sort(vals)
+    # Upper inner fence
+    upper_inner_fence = q3 +  ir * 1.5
+    upper_adjacent_value = np.clip(upper_inner_fence, q3, vals[-1])
+    # Lower inner fence
+    lower_inner_fence = q1 - ir * 1.5
+    lower_adjacent_value = np.clip(lower_inner_fence, vals[0], q1)
+
+    return median, q1, q3, lower_adjacent_value, upper_adjacent_value
+
+def plot_nested_rfecv_boxplots(results_dict):
+    fig, ax = plt.subplots(2, 1)
+    ax, ax2 = ax
+    # ax2 = ax.twinx()
+
+    xlabels = []
+    for i, key in enumerate(results_dict.keys()):
+        xlabels.append(key)
+        ts_optfts = results_dict[key]['test_score_optfts']
+        ts_allfts = results_dict[key]['test_score_allfts']
+
+        median1, q1, q3, if1, if2 = get_boxplot_values(ts_optfts)
+        # ax.scatter(i, median, color='C0', marker='x', s=20)
+        ax.vlines(x=i, ymin=q1, ymax=q3, alpha=0.5, lw=5, color='C0')
+        ax.vlines(x=i, ymin=if1, ymax=if2, alpha=0.5, lw=1, color='C0')
+
+        median2, q1, q3, if1, if2 = get_boxplot_values(ts_allfts)
+        ax.vlines(x=i, ymin=q1, ymax=q3, alpha=0.5, lw=5, color='C1')
+        ax.vlines(x=i, ymin=if1, ymax=if2, alpha=0.5, lw=1, color='C1')
+
+        label1, label2, = None, None
+        if i == 1:
+            label1 = 'selected'
+            label2 = 'all'
+        ax.scatter(i, median1, color='C0', marker='x', s=20, zorder=5, label=label1)
+        ax.scatter(i, median2, color='C1', marker='x', s=20, zorder=5, alpha=0.7, label=label2)
+
+        n_feats = results_dict[key]['n_feats']
+        median, q1, q3, if1, if2 = get_boxplot_values(n_feats)
+        ax2.scatter(i, median, color='C3', marker='x', s=20)
+        ax2.vlines(x=i, ymin=q1, ymax=q3, alpha=0.5, lw=5, color='C3')
+        ax2.vlines(x=i, ymin=if1, ymax=if2, alpha=0.5, lw=1, color='C3')
+        
+    ax.set_xticks(np.arange(len(xlabels)), labels=[])
+    ax2.set_xticks(np.arange(len(xlabels)), labels=xlabels, rotation=90);
+    ax.set_ylabel(r'CV $R^2$')
+    ax2.set_ylabel(r'CV N Features')
+    ax.legend()
+
+def plot_rfecv_feature_heatmap(mega_df, feature_names):
+    fig, ax = plt.subplots()
+    mappable = ax.imshow(mega_df.to_numpy(), cmap=cm.Blues)
+    ax.set_yticks(np.arange(mega_df.shape[0]), feature_names);
+    ax.set_xticks(np.arange(mega_df.shape[1]), mega_df.columns, rotation=90);
+    fig.colorbar(mappable, shrink=0.6, label='CV Count')

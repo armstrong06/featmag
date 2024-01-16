@@ -277,8 +277,9 @@ class GatherFeatureDatasets():
 
         return df
 
-    def get_feature_plot_names(self, freq_max=18):
-        return self.feature_maker.make_feature_plot_names(freq_max=freq_max)
+    def get_feature_plot_names(self, freq_max=18, source_dist_type='all'):
+        return self.feature_maker.make_feature_plot_names(freq_max=freq_max,
+                                                          source_dist_type=source_dist_type)
 
     def get_feature_names(self,
                           freq_max=18,
@@ -462,7 +463,7 @@ class PFeatures():
         if source_dist_type in ['all', 'dist']:
             alt_names += ['distance', 'back az.']
 
-        return alt_names
+        return np.array(alt_names)
 
 
 class SFeatures():
@@ -609,7 +610,7 @@ class SFeatures():
         if source_dist_type in ['all', 'dist']:
             alt_names += ['distance', 'back az.']
 
-        return alt_names
+        return np.array(alt_names)
 
     @staticmethod
     def make_feature_names(freq_max=18,
