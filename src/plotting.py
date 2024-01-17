@@ -172,3 +172,88 @@ def plot_rfecv_feature_heatmap(mega_df, feature_names):
     ax.set_yticks(np.arange(mega_df.shape[0]), feature_names);
     ax.set_xticks(np.arange(mega_df.shape[1]), mega_df.columns, rotation=90);
     fig.colorbar(mappable, shrink=0.6, label='CV Count')
+
+def compare_score_different_feats_scatter(df1,
+                                   df2,
+                                   df1_label,
+                                   df2_label,
+                                   col_name='test_r2',
+                                   ylabel='R^2',
+                                   title=None):
+    df1_color = '#1b9e77'
+    df2_color = '#d95f02'
+
+    merge_df = df1[['station', col_name]].merge(df2[['station', col_name]], 
+                                                on='station', 
+                                                how='outer')
+    print(merge_df.columns)
+
+    fig, ax = plt.subplots()
+    ax.scatter(merge_df['station'], 
+            merge_df[f'{col_name}_x'],
+            marker='*', 
+            color=df1_color, 
+            label=df1_label,
+            s=50)
+    
+    ax.scatter(merge_df['station'], 
+            merge_df[f'{col_name}_y'],
+            marker='x', 
+            color=df2_color, 
+            label=df2_label)
+
+    ax.set_xticks(merge_df['station']);
+    ax.set_xticklabels(merge_df['station'], rotation=90);
+    ax.set_ylabel(f'${ylabel}$')
+    ax.legend(loc='lower left')
+    ax.set_title(title)
+
+def plot_station_splits_scores_scatter(df,
+                                metric='r2',
+                                ylabel='R^2',
+                                title=None):
+    train_color = '#1b9e77'
+    test_color = '#d95f02'
+    holdout_color = '#7570b3'
+
+    fig, ax = plt.subplots()
+    if metric == 'r2':
+        ax.vlines(df['station'], 
+                df['cv_mean_sel']-df['cv_std_sel'],
+                df['cv_mean_sel']+df['cv_std_sel'],
+                lw=4,
+                color=train_color,
+                alpha=0.5,
+                zorder=0,
+                label='CV St. Dev.')
+        ax.scatter(df['station'], 
+                df['cv_mean_sel'], 
+                marker='_', 
+                color=train_color,
+                label='CV Mean')
+    ax.scatter(df['station'], 
+            df[f'train_{metric}'],
+            marker='x', 
+            color=train_color, 
+            label='Train Score',
+            zorder=4)
+    ax.scatter(df['station'], 
+            df[f'holdout_{metric}'], 
+            marker='^', 
+            color=holdout_color,
+            label='Holdout Score',
+            zorder=3,
+            s=55)
+    ax.scatter(df['station'], 
+            df[f'test_{metric}'], 
+            marker='*', 
+            color=test_color,
+            label='Test Score',
+            s=50,
+            zorder=5)
+
+    ax.set_xticks(df['station']);
+    ax.set_xticklabels(df['station'], rotation=90);
+    ax.set_ylabel(f'${ylabel}$')
+    ax.legend()
+    ax.set_title(title)
