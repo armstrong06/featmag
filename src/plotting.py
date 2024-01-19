@@ -285,7 +285,9 @@ def scores_heatmap(df,
                    cmap_max=None,
                    cbar_ticks=None,
                    cbar_label=None,
-                   ):
+                   tablefontcolor='k',
+                   tablefontsize=None,
+                   tight_layout=True):
     """Follow this example
     https://matplotlib.org/stable/gallery/images_contours_and_fields/image_annotated_heatmap.html#a-simple-categorical-heatmap
     """
@@ -330,13 +332,16 @@ def scores_heatmap(df,
             else:
                 t=f"{t:0.2f}"
             ax.text(j, i, t,
-                    ha="center", va="center", color="k")
+                    ha="center", 
+                    va="center", 
+                    color=tablefontcolor,
+                    fontsize=tablefontsize)
     if show_cbar:   
-        fig.colorbar(im, label=cbar_label)
+        fig.colorbar(im, ticks=cbar_ticks, label=cbar_label)
     
     ax.set_title(title)
 
-    if ax is None:
+    if tight_layout and ax is None:
         fig.tight_layout()
 
     return im
