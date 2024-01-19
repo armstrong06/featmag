@@ -4,6 +4,7 @@ import numpy as np
 import pandas as pd
 import os
 from matplotlib import cm
+from matplotlib.colors import Normalize, TwoSlopeNorm
 
 
 def plot_station_feature_box_whisker(df, feature, ylabel=None, sort_counts=True, thresholds=None, showfliers=True, min_y_line=None):
@@ -211,7 +212,8 @@ def compare_score_different_feats_scatter(df1,
 def plot_station_splits_scores_scatter(df,
                                 metric='r2',
                                 ylabel='R^2',
-                                title=None):
+                                title=None,
+                                vlines=False):
     train_color = '#1b9e77'
     test_color = '#d95f02'
     holdout_color = '#7570b3'
@@ -251,9 +253,90 @@ def plot_station_splits_scores_scatter(df,
             label='Test Score',
             s=50,
             zorder=5)
-
+    if vlines:
+        ax.vlines(df['station'], 
+                df[f'holdout_{metric}'], 
+                df[f'train_{metric}'], 
+                color=holdout_color,
+                alpha=0.5)
+        ax.vlines(df['station'], 
+                df[f'test_{metric}'], 
+                df[f'train_{metric}'], 
+                color=test_color,
+                alpha=0.5)
+    
     ax.set_xticks(df['station']);
     ax.set_xticklabels(df['station'], rotation=90);
     ax.set_ylabel(f'${ylabel}$')
     ax.legend()
     ax.set_title(title)
+
+def scores_heatmap(df, 
+                   cols=['train_r2', 'test_r2', 'holdout_r2'],
+                   xticklabels=['Train', 'Test', 'Holdout'],
+                   ax=None,
+                   title=None,
+                   show_ylabels=True,
+                   show_cbar=True,
+                   midpoint_normalize=True,
+                   midpoint=None,
+                   cmap=cm.Blues,
+                   cmap_min=None,
+                   cmap_max=None,
+                   cbar_ticks=None,
+                   cbar_label=None,
+                   ):
+    """Follow this example
+    https://matplotlib.org/stable/gallery/images_contours_and_fields/image_annotated_heatmap.html#a-simple-categorical-heatmap
+    """
+    norm = None
+    if midpoint_normalize:
+        if midpoint is None:
+            midpoint = np.nanpercentile(df[cols].values, [50])[0]
+            print(f'cmap midpoint set to {midpoint}')
+        if cmap_min is None:
+            cmap_min = df[cols].min(axis=None)
+            print(f'cmap min set to {cmap_min}')
+        if cmap_max is None:
+            cmap_max = df[cols].max(axis=None)
+            print(f'cmap max set to {cmap_max}')
+
+        norm = TwoSlopeNorm(vmin=cmap_min, vcenter=midpoint, vmax=cmap_max)
+         
+    if ax is None:
+        fig, ax = plt.subplots(figsize=(4, 6))
+
+    im = ax.imshow(df[cols], 
+                aspect='auto',
+                norm=norm,
+                cmap=cmap,
+                #clim=(cmap_min, cmap_max)                     
+                )
+    ylabels=[]
+    yticks = []
+    if show_ylabels:
+        ylabels=df['station']
+        yticks = np.arange(len(df['station']))
+    ax.set_yticks(yticks, labels=ylabels);
+    ax.set_xticks(np.arange(len(cols)), xticklabels);
+    plt.setp(ax.get_xticklabels(), rotation=45, ha="right",
+            rotation_mode="anchor");
+    # Loop over data dimensions and create text annotations.
+    for i in range(len(df['station'])):
+        for j in range(3):
+            t = df[cols].values[i, j]
+            if np.isnan(t):
+                t=""
+            else:
+                t=f"{t:0.2f}"
+            ax.text(j, i, t,
+                    ha="center", va="center", color="k")
+    if show_cbar:   
+        fig.colorbar(im, label=cbar_label)
+    
+    ax.set_title(title)
+
+    if ax is None:
+        fig.tight_layout()
+
+    return im
