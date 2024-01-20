@@ -3,6 +3,7 @@ import seaborn as sns
 import numpy as np
 import pandas as pd
 import os
+from matplotlib import patches
 from matplotlib import cm
 from matplotlib.colors import Normalize, TwoSlopeNorm
 
@@ -346,3 +347,142 @@ def scores_heatmap(df,
         fig.tight_layout()
 
     return im
+
+def actual_v_predicted(results_df,
+                         all_train_df,
+                         all_test_df,
+                         all_holdout_df = None,
+                         n_cols=6,
+                         title=None,
+                         tick_locations=[0, 2, 4],
+                         inner_ticks_on=True,
+                         axis_lims=[-0.2, 5],
+                         legend_names=['Train', 'Test', 'Holdout'],
+                         colors = ['lightgray', 'C0', 'C1'],
+                         alphas = [0.5, 0.5, 0.5],
+                         legend_bbox_width=3,
+                         figsize=(11,11)):
+
+    inner_tick_locations = []
+    if inner_ticks_on:
+        inner_tick_locations = tick_locations
+
+    # Set up the figure axes
+    n_stats = len(results_df)
+    n_rows = int(np.ceil((n_stats)/n_cols))
+    fig, axes = plt.subplots(n_rows, n_cols, figsize=figsize, constrained_layout=True)
+    axes = axes.flatten()
+
+    # When the number of stations does not evenly fit into the n_cols*n_rows,
+    # remove extra axes from the upper left corner 
+    # Get the ax inds to turn off and add 'null' into the station list
+    stat_list = results_df['station'].tolist()
+    ignore_inds = []
+    for i in range(int(n_rows*n_cols - n_stats), 0, -1): 
+        ignore_inds.append(n_cols-i)
+        stat_list.insert(n_cols-i, "null")
+
+    i = 0
+    legend = False
+    for cnt, station in enumerate(stat_list):
+        ax = axes[cnt]
+        ax.set_xlim(axis_lims)
+        ax.set_ylim(axis_lims)
+        # Turn of the extra axes
+        if cnt in ignore_inds:
+            if not legend:
+                legend_symbol_x = 1.0
+                legend_label_x = legend_symbol_x + 0.35
+                legend_symbol_max_y = 3.05
+                legend_symbol_spacing_y = 0.75
+                legend_label_shift_y = 0.15
+                bbox_pad = 0.2
+               # bbox_x_length = 3
+                for legend_i in range(3):
+                    symbol_pos_y = legend_symbol_max_y-legend_i*legend_symbol_spacing_y
+                    text_pos_y = symbol_pos_y - legend_label_shift_y
+                    ax.scatter(legend_symbol_x, symbol_pos_y, 
+                            color=colors[legend_i], 
+                            alpha=alphas[legend_i])
+                    ax.text(legend_label_x, text_pos_y, legend_names[legend_i], fontsize=12)
+
+                rect = patches.Rectangle((legend_symbol_x-2*bbox_pad, text_pos_y-bbox_pad),
+                                         width=legend_bbox_width,
+                                         height=(legend_symbol_max_y+3*bbox_pad)-text_pos_y,
+                                         linewidth=1,
+                                         edgecolor='k',
+                                         facecolor='none')
+                ax.add_patch(rect)
+
+                legend = True
+                ax.plot([])
+            ax.axis('off')
+            continue
+        
+        # Get the predictions for one station
+        results_row = results_df[results_df['station'] == station]
+        train_df = all_train_df[all_train_df['station'] == station]
+        test_df = all_test_df[all_test_df['station'] == station]
+        holdout_df = None
+        if (all_holdout_df is not None) and (station in all_holdout_df['station'].unique()):
+            holdout_df = all_holdout_df[all_holdout_df['station'] == station]
+
+        # Set ticks & labels - axes on the outer edge should have labels
+        if cnt < len(stat_list) - n_cols:
+            ax.set_xticks(inner_tick_locations, labels=[])
+        else:
+            ax.set_xticks(tick_locations)
+        if (cnt % n_cols != 0):
+            ax.set_yticks(inner_tick_locations, labels=[])
+
+        ax.scatter(train_df['magnitude'], 
+                train_df['predicted_magnitude'], 
+                label=legend_names[0], 
+                color=colors[0], 
+                alpha=alphas[0])
+
+        ax.scatter(test_df['magnitude'], 
+                test_df['predicted_magnitude'], 
+                label=legend_names[1], 
+                color=colors[1], 
+                alpha=alphas[1])
+        
+        if holdout_df is not None:
+            ax.scatter(holdout_df['magnitude'], 
+                    holdout_df['predicted_magnitude'], 
+                    label=legend_names[2], 
+                    color=colors[2], 
+                    alpha=alphas[2])
+            
+        ax.plot(np.arange(axis_lims[0], axis_lims[1], 0.5), 
+                np.arange(axis_lims[0], axis_lims[1], 0.5), 
+                color="k")
+        ax.text(1.5, 
+                4.2, 
+                station, 
+                fontsize=14) #, bbox={"facecolor":"white", "alpha":0.5}
+
+        # We change the fontsize of minor ticks label 
+        ax.tick_params(axis='both', which='major', labelsize=14)
+        ax.tick_params(axis='both', which='minor', labelsize=8)
+
+        ax.text(1.8, 0.01, 
+                f"{results_row['test_r2'].values[0]:1.2f}", 
+                color=colors[1], 
+                fontsize=12)
+        if holdout_df is not None:
+            ax.text(3.2, 0.01, 
+                    f"{results_row['holdout_r2'].values[0]:1.2f}", 
+                    color=colors[2],
+                    fontsize=12,
+                    bbox=dict(facecolor='white', alpha=0.5, edgecolor='white', pad=0.1))
+
+        ax.set_aspect('equal', adjustable='box')
+        
+    fig.supxlabel(r"Actual $M_L$", fontsize=16)
+    fig.supylabel(r"Predicted $M_L$", fontsize=16, x=-0.02)
+    fig.suptitle(title, fontsize=16, y=1.02)
+
+    if not legend:
+        ax.legend(loc=(1.2, 0), fontsize=12, handletextpad=0.5, borderpad=0.05, 
+                borderaxespad=0.05, handlelength=0.5)

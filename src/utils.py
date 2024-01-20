@@ -1,5 +1,7 @@
 import numpy as np
 import json
+import pandas as pd
+import os
 from sklearn.pipeline import Pipeline
 from sklearn.model_selection import RepeatedKFold, KFold, GridSearchCV
 from sklearn.preprocessing import StandardScaler
@@ -8,6 +10,19 @@ def write_dict_to_json(filename, wdict):
     print('Writing', filename)
     with open(filename, 'w') as fp:
         json.dump(wdict, fp, indent=4, cls=NumpyEncoder)
+
+def combine_prediction_files(stations_list,
+                             datapath,
+                             phase,
+                             split):
+    pred_df_arr = []
+    for stat in stations_list:
+        df = pd.read_csv(os.path.join(datapath, f'{stat}.{phase}.preds.{split}.csv'))
+        df['station'] = stat
+        pred_df_arr.append(df)
+
+    df = pd.concat(pred_df_arr)
+    return df
 
 class NumpyEncoder(json.JSONEncoder):
     def default(self, obj):
