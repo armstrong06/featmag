@@ -24,6 +24,15 @@ def combine_prediction_files(stations_list,
     df = pd.concat(pred_df_arr)
     return df
 
+def compute_network_avg_prediction(df):
+    avg_df = df.groupby('Evid')[['magnitude', 
+                                      'predicted_magnitude']].mean('predicted_magnitude').reset_index()
+    std_df = df.groupby('Evid')[['predicted_magnitude']].std().reset_index().rename(
+        columns={'predicted_magnitude':'predicted_magntiude_std'})
+    assert np.array_equal(avg_df['Evid'], std_df['Evid']), 'Evids do not mat'
+    avg_df['predicted_magnitude_std'] = std_df['predicted_magntiude_std']
+    return avg_df
+
 class NumpyEncoder(json.JSONEncoder):
     def default(self, obj):
         if isinstance(obj, np.ndarray):

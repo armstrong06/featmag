@@ -6,7 +6,7 @@ import os
 from matplotlib import patches
 from matplotlib import cm
 from matplotlib.colors import Normalize, TwoSlopeNorm
-
+from sklearn.metrics import r2_score, mean_squared_error
 
 def plot_station_feature_box_whisker(df, feature, ylabel=None, sort_counts=True, thresholds=None, showfliers=True, min_y_line=None):
     fig = plt.figure(figsize=(15, 5))
@@ -486,3 +486,54 @@ def actual_v_predicted(results_df,
     if not legend:
         ax.legend(loc=(1.2, 0), fontsize=12, handletextpad=0.5, borderpad=0.05, 
                 borderaxespad=0.05, handlelength=0.5)
+
+def actual_v_network_avg_prediction(df_list,
+                                    title = None,
+                                    plot_xlabel=True,
+                                    plot_ylabel=True,
+                                    plot_lims=[-0.5, 4.0],
+                                    ax=None,
+                                    alphas=[0.1],
+                                    legend_labels=[None],
+                                    plot_legend=False,
+                                    colors=['C0']):
+
+    if ax is None:
+        fig, ax = plt.subplots(1, constrained_layout=True)
+
+    yticks = np.arange(0, plot_lims[1]+0.5, 1)
+    
+    for i, df in enumerate(df_list):
+        r2 = r2_score(df['magnitude'], df['predicted_magnitude'])
+        rmse = mean_squared_error(df['magnitude'], 
+                                  df['predicted_magnitude'], 
+                                  squared=False)
+        ax.scatter(df["magnitude"], 
+                   df["predicted_magnitude"], 
+                   alpha=alphas[i],
+                   label=legend_labels[i],
+                   color=colors[i])
+        ax.text(0.1 + i*1.5, plot_lims[1]-0.5, 
+                f"$R^2$={r2: 0.2f}", fontsize=12,
+                color=colors[i])
+        ax.text(-0.2+ i*1.5, plot_lims[1]-0.75, 
+                f"$RMSE$={rmse: 0.2f}", fontsize=12,
+                color=colors[i])
+
+    ax.plot(np.arange(plot_lims[0], plot_lims[1]+0.5, 0.5), 
+            np.arange(plot_lims[0], plot_lims[1]+0.5, 0.5), 
+            color="red")
+
+    if plot_xlabel:
+        ax.set_xlabel(r"Actual $M_L$", fontsize=12)
+    if plot_ylabel:
+        ax.set_ylabel(r"Predicted Network (Average) $M_L$", fontsize=12)
+    if plot_legend:
+        ax.legend(loc='lower right')
+
+    ax.set_title(title, fontsize=12)
+    ax.set_yticks(yticks);
+    ax.set_xticks(yticks);
+    ax.set_ylim(plot_lims);
+    ax.set_xlim(plot_lims)
+    ax.set_aspect('equal', adjustable='box')
