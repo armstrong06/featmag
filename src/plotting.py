@@ -513,10 +513,13 @@ def actual_v_network_avg_prediction(df_list,
                    alpha=alphas[i],
                    label=legend_labels[i],
                    color=colors[i])
-        ax.text(0.1 + i*1.5, plot_lims[1]-0.5, 
+        ax.text(0.2+ i*1.5, plot_lims[1]-0.475, 
+                f"$N$={df.shape[0]: 0.0f}", fontsize=12,
+                color=colors[i])
+        ax.text(0.1 + i*1.5, plot_lims[1]-0.75, 
                 f"$R^2$={r2: 0.2f}", fontsize=12,
                 color=colors[i])
-        ax.text(-0.2+ i*1.5, plot_lims[1]-0.75, 
+        ax.text(-0.2+ i*1.5, plot_lims[1]-1.0, 
                 f"$RMSE$={rmse: 0.2f}", fontsize=12,
                 color=colors[i])
 
