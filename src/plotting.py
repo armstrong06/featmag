@@ -492,6 +492,7 @@ def actual_v_network_avg_prediction(df_list,
                                     plot_xlabel=True,
                                     plot_ylabel=True,
                                     plot_lims=[-0.5, 4.0],
+                                    plot_ytick_labels=True,
                                     ax=None,
                                     alphas=[0.1],
                                     legend_labels=[None],
@@ -501,8 +502,11 @@ def actual_v_network_avg_prediction(df_list,
     if ax is None:
         fig, ax = plt.subplots(1, constrained_layout=True)
 
-    yticks = np.arange(0, plot_lims[1]+0.5, 1)
-    
+    yticks = np.arange(0, plot_lims[1]+0.5, 1, dtype=int)
+    ytick_labels = yticks
+    if not plot_ytick_labels:
+        ytick_labels = []
+
     for i, df in enumerate(df_list):
         r2 = r2_score(df['magnitude'], df['predicted_magnitude'])
         rmse = mean_squared_error(df['magnitude'], 
@@ -535,7 +539,7 @@ def actual_v_network_avg_prediction(df_list,
         ax.legend(loc='lower right')
 
     ax.set_title(title, fontsize=12)
-    ax.set_yticks(yticks);
+    ax.set_yticks(yticks, labels=ytick_labels);
     ax.set_xticks(yticks);
     ax.set_ylim(plot_lims);
     ax.set_xlim(plot_lims)

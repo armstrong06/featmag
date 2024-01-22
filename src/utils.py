@@ -24,6 +24,15 @@ def combine_prediction_files(stations_list,
     df = pd.concat(pred_df_arr)
     return df
 
+def combine_p_and_s_predictions(p_preds_df, s_preds_df):
+    p_preds_df['phase'] = 'P'
+    s_preds_df['phase'] = 'S'
+    combined_df = pd.concat([p_preds_df, s_preds_df])
+    print('Original number of predictions:', combined_df.shape[0])
+    combined_df = combined_df.groupby('Evid').filter(lambda x: True if len(x['phase'].unique()) == 2 else False)
+    print('Filtered number of predictions:',combined_df.shape[0])
+    return combined_df
+
 def compute_network_avg_prediction(df):
     avg_df = df.groupby('Evid')[['magnitude', 
                                       'predicted_magnitude']].mean('predicted_magnitude').reset_index()
