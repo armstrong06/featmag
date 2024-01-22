@@ -7,6 +7,7 @@ from matplotlib import patches
 from matplotlib import cm
 from matplotlib.colors import Normalize, TwoSlopeNorm
 from sklearn.metrics import r2_score, mean_squared_error
+import string
 
 def plot_station_feature_box_whisker(df, feature, ylabel=None, sort_counts=True, thresholds=None, showfliers=True, min_y_line=None):
     fig = plt.figure(figsize=(15, 5))
@@ -361,7 +362,9 @@ def actual_v_predicted(results_df,
                          colors = ['lightgray', 'C0', 'C1'],
                          alphas = [0.5, 0.5, 0.5],
                          legend_bbox_width=3,
-                         figsize=(11,11)):
+                         figsize=(11,11),
+                         linestyle='-',
+                         linecolor='k'):
 
     inner_tick_locations = []
     if inner_ticks_on:
@@ -382,6 +385,7 @@ def actual_v_predicted(results_df,
         ignore_inds.append(n_cols-i)
         stat_list.insert(n_cols-i, "null")
 
+    subpanel_labels = list(string.ascii_lowercase)
     i = 0
     legend = False
     for cnt, station in enumerate(stat_list):
@@ -418,7 +422,12 @@ def actual_v_predicted(results_df,
                 ax.plot([])
             ax.axis('off')
             continue
-        
+
+        # Get the subpanel label
+        sp_label = subpanel_labels[i%len(subpanel_labels)]
+        if i >= len(subpanel_labels):
+            sp_label = subpanel_labels[0] + sp_label
+        sp_label = "(" + sp_label + ")"
         # Get the predictions for one station
         results_row = results_df[results_df['station'] == station]
         train_df = all_train_df[all_train_df['station'] == station]
@@ -456,11 +465,18 @@ def actual_v_predicted(results_df,
             
         ax.plot(np.arange(axis_lims[0], axis_lims[1], 0.5), 
                 np.arange(axis_lims[0], axis_lims[1], 0.5), 
-                color="k")
+                color=linecolor,
+                linestyle=linestyle)
         ax.text(1.5, 
                 4.2, 
                 station, 
                 fontsize=14) #, bbox={"facecolor":"white", "alpha":0.5}
+
+        ax.text(0.05, 
+                1.03, 
+                sp_label, 
+                transform=ax.transAxes,
+                fontsize=12)
 
         # We change the fontsize of minor ticks label 
         ax.tick_params(axis='both', which='major', labelsize=14)
@@ -478,14 +494,16 @@ def actual_v_predicted(results_df,
                     bbox=dict(facecolor='white', alpha=0.5, edgecolor='white', pad=0.1))
 
         ax.set_aspect('equal', adjustable='box')
+        i+=1
         
     fig.supxlabel(r"Actual $M_L$", fontsize=16)
     fig.supylabel(r"Predicted $M_L$", fontsize=16, x=-0.02)
-    fig.suptitle(title, fontsize=16, y=1.02)
+    fig.suptitle(title, fontsize=16, y=1.04)
 
     if not legend:
         ax.legend(loc=(1.2, 0), fontsize=12, handletextpad=0.5, borderpad=0.05, 
                 borderaxespad=0.05, handlelength=0.5)
+    
 
 def actual_v_network_avg_prediction(df_list,
                                     title = None,
@@ -493,19 +511,29 @@ def actual_v_network_avg_prediction(df_list,
                                     plot_ylabel=True,
                                     plot_lims=[-0.5, 4.0],
                                     plot_ytick_labels=True,
+                                    plot_xtick_labels=True,
                                     ax=None,
                                     alphas=[0.1],
                                     legend_labels=[None],
                                     plot_legend=False,
-                                    colors=['C0']):
+                                    marker_colors=['C0'],
+                                    linecolor='k',
+                                    linestyle='-',
+                                    text_x=[0.0],
+                                    text_y=[-1.2]
+                                    ):
 
     if ax is None:
         fig, ax = plt.subplots(1, constrained_layout=True)
 
     yticks = np.arange(0, plot_lims[1]+0.5, 1, dtype=int)
     ytick_labels = yticks
+    xtick_labels = yticks
+
     if not plot_ytick_labels:
         ytick_labels = []
+    if not plot_xtick_labels:
+        xtick_labels = []
 
     for i, df in enumerate(df_list):
         r2 = r2_score(df['magnitude'], df['predicted_magnitude'])
@@ -516,20 +544,28 @@ def actual_v_network_avg_prediction(df_list,
                    df["predicted_magnitude"], 
                    alpha=alphas[i],
                    label=legend_labels[i],
-                   color=colors[i])
-        ax.text(0.2+ i*1.5, plot_lims[1]-0.475, 
-                f"$N$={df.shape[0]: 0.0f}", fontsize=12,
-                color=colors[i])
-        ax.text(0.1 + i*1.5, plot_lims[1]-0.75, 
-                f"$R^2$={r2: 0.2f}", fontsize=12,
-                color=colors[i])
-        ax.text(-0.2+ i*1.5, plot_lims[1]-1.0, 
-                f"$RMSE$={rmse: 0.2f}", fontsize=12,
-                color=colors[i])
+                   color=marker_colors[i])
+        ax.text(text_x[i] + i*1.0, plot_lims[1]+text_y[i],
+                f"$N$:{df.shape[0]: 0.0f}\n$R^2$:{r2: 0.2f}\n$RMSE$:{rmse: 0.2f}", 
+                fontsize=10,
+                color=marker_colors[i],
+                bbox=dict(facecolor='white', alpha=0.5, edgecolor='white')) 
+
+
+        # ax.text(text_start[i]+0.2+ i*1.5, plot_lims[1]-0.475, 
+        #         f"$N$={df.shape[0]: 0.0f}", fontsize=12,
+        #         color=marker_colors[i])
+        # ax.text(text_start[i]+0.1 + i*1.5, plot_lims[1]-0.75, 
+        #         f"$R^2$={r2: 0.2f}", fontsize=12,
+        #         color=marker_colors[i])
+        # ax.text(text_start[i]+-0.2+ i*1.5, plot_lims[1]-1.0, 
+        #         f"$RMSE$={rmse: 0.2f}", fontsize=12,
+        #         color=marker_colors[i])
 
     ax.plot(np.arange(plot_lims[0], plot_lims[1]+0.5, 0.5), 
             np.arange(plot_lims[0], plot_lims[1]+0.5, 0.5), 
-            color="red")
+            color=linecolor,
+            linestyle=linestyle)
 
     if plot_xlabel:
         ax.set_xlabel(r"Actual $M_L$", fontsize=12)
@@ -540,7 +576,7 @@ def actual_v_network_avg_prediction(df_list,
 
     ax.set_title(title, fontsize=12)
     ax.set_yticks(yticks, labels=ytick_labels);
-    ax.set_xticks(yticks);
+    ax.set_xticks(yticks, labels=xtick_labels);
     ax.set_ylim(plot_lims);
     ax.set_xlim(plot_lims)
     ax.set_aspect('equal', adjustable='box')
