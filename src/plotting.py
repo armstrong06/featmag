@@ -35,7 +35,7 @@ def plot_station_feature_box_whisker(df, feature, ylabel=None, sort_counts=True,
 
 
 def plot_pairwise_correlations(X, y, column_names, title,
-                               xticklabels=2):
+                               xticklabels=2, ax=None):
     """Followed [this](https://seaborn.pydata.org/examples/many_pairwise_correlations.html) example"""
     df = pd.DataFrame(X, columns=column_names)
     df['magnitude'] = y
@@ -47,8 +47,9 @@ def plot_pairwise_correlations(X, y, column_names, title,
     # Generate a mask for the upper triangle
     mask = np.triu(np.ones_like(corr, dtype=bool))
 
-    # Set up the matplotlib figure
-    f, ax = plt.subplots(figsize=(11, 9))
+    if ax is None:
+        # Set up the matplotlib figure
+        f, ax = plt.subplots(figsize=(11, 9))
 
     # Generate a custom diverging colormap
     cmap = sns.diverging_palette(230, 20, as_cmap=True)
@@ -134,12 +135,11 @@ def plot_nested_rfecv_boxplots(results_dict):
     fig, ax = plt.subplots(2, 1)
     ax, ax2 = ax
     # ax2 = ax.twinx()
-
-    xlabels = []
-    for i, key in enumerate(results_dict.keys()):
-        xlabels.append(key)
-        ts_optfts = results_dict[key]['test_score_optfts']
-        ts_allfts = results_dict[key]['test_score_allfts']
+    results_df = pd.DataFrame(results_dict).T.reset_index().rename(columns={'index':'station'}).sort_values('station')
+    xlabels = results_df['station']
+    for i, row in results_df.iterrows():
+        ts_optfts = row['test_score_optfts']
+        ts_allfts = row['test_score_allfts']
 
         median1, q1, q3, if1, if2 = get_boxplot_values(ts_optfts)
         # ax.scatter(i, median, color='C0', marker='x', s=20)
@@ -157,7 +157,7 @@ def plot_nested_rfecv_boxplots(results_dict):
         ax.scatter(i, median1, color='C0', marker='x', s=20, zorder=5, label=label1)
         ax.scatter(i, median2, color='C1', marker='x', s=20, zorder=5, alpha=0.7, label=label2)
 
-        n_feats = results_dict[key]['n_feats']
+        n_feats = row['n_feats']
         median, q1, q3, if1, if2 = get_boxplot_values(n_feats)
         ax2.scatter(i, median, color='C3', marker='x', s=20)
         ax2.vlines(x=i, ymin=q1, ymax=q3, alpha=0.5, lw=5, color='C3')
@@ -169,12 +169,20 @@ def plot_nested_rfecv_boxplots(results_dict):
     ax2.set_ylabel(r'CV N Features')
     ax.legend()
 
-def plot_rfecv_feature_heatmap(mega_df, feature_names):
-    fig, ax = plt.subplots()
+def plot_rfecv_feature_heatmap(mega_df, 
+                               feature_names, 
+                               ax=None,
+                               plot_colorbar=True,
+                               title=None):
+    if ax is None:
+        fig, ax = plt.subplots()
     mappable = ax.imshow(mega_df.to_numpy(), cmap=cm.Blues)
     ax.set_yticks(np.arange(mega_df.shape[0]), feature_names);
     ax.set_xticks(np.arange(mega_df.shape[1]), mega_df.columns, rotation=90);
-    fig.colorbar(mappable, shrink=0.6, label='CV Count')
+    if plot_colorbar:
+        plt.colorbar(mappable, shrink=0.6, label='CV Count')
+    ax.set_title(title)
+    return mappable
 
 def compare_score_different_feats_scatter(df1,
                                    df2,
