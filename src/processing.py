@@ -152,7 +152,7 @@ class GatherFeatureDatasets():
     def process_station_datasets(self,
                                  station,
                                  train_df,
-                                 test_df,
+                                 test_df=None,
                                  holdout_df=None,
                                  freq_max=18,
                                  scaler=True,
@@ -167,26 +167,30 @@ class GatherFeatureDatasets():
                                                                      source_dist_type=source_dist_type,
                                                                      linear_model=linear_model,
                                                                      target_column=target_column)
-
-        stest = self.filter_by_station(test_df, station)
-        s_X_test, s_y_test, _, _ = self.get_X_y(stest,
-                                                scaler=s_scaler,
-                                                freq_max=freq_max,
-                                                source_dist_type=source_dist_type,
-                                                linear_model=linear_model,
-                                                target_column=target_column)
         feat_dict = {'scaler': s_scaler,
                      'X_train': s_X_train,
-                     'X_test': s_X_test,
                     }
         
         meta_dict = {'scaler': s_scaler,
                      'y_train': s_y_train,
                      'evids_train': strain['Evid'],
-                     'y_test': s_y_test,
-                     'evids_test': stest['Evid']}
+                     }
+       
+        if test_df is not None:
+            stest = self.filter_by_station(test_df, station)
+            s_X_test, s_y_test, _, _ = self.get_X_y(stest,
+                                                    scaler=s_scaler,
+                                                    freq_max=freq_max,
+                                                    source_dist_type=source_dist_type,
+                                                    linear_model=linear_model,
+                                                    target_column=target_column)
+            
+            feat_dict['X_test'] = s_X_test
+            meta_dict['y_test'] = s_y_test
+            meta_dict['evids_test'] = stest['Evid']
 
         if holdout_df is not None:
+            # Not every station has a holdout set
             X_holdout, y_holdout, evids_holdout = None, None, None
             if station in holdout_df['station'].unique():
                 sholdout = self.filter_by_station(holdout_df, station)
