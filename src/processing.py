@@ -549,7 +549,7 @@ class SFeatures():
                          'signal_variance',
                          'noise_variance',
                          'source_depth_km']
-
+        # TODO: should change dist_types to "relative", "absolute", "both"
         if source_dist_type == 'coord':
             X[:, i+8] = df['source_latitude']
             X[:, i+9] = df['source_longitude']
