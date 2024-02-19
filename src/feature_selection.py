@@ -1,6 +1,6 @@
 import numpy as np
 import pandas as pd
-from sklearn.model_selection import RepeatedKFold
+from sklearn.model_selection import RepeatedKFold, cross_validate
 from sklearn.feature_selection import RFE, SelectKBest, f_regression, mutual_info_regression
 from sklearn.metrics import r2_score
 import time
@@ -111,6 +111,10 @@ class IntrinsicFeatureSelection():
             other_inds = np.arange(0, X.shape[1])[np.isin(np.arange(0, X.shape[1]), 
                                                         np.concatenate(subsets), 
                                                         invert=True)]
+        else:
+            other_inds = other_inds[np.isin(other_inds, 
+                                            np.concatenate(subsets), 
+                                            invert=True)]
         filtered_inds = np.zeros((len(subsets), K), dtype=int)
         for i, subset in enumerate(subsets):
             Xi = X[:, subset]
@@ -602,12 +606,12 @@ class CustomRFECV:
 class SequentialFeatureSelection():
 
     @staticmethod
-    def sequential_cv(X,
+    def sequential_cv_N(X,
                 y,
                 predictor_model,
                 param_grid,
                 feature_ids_to_select,
-                required_feature_ids,
+                required_feature_ids=None,
                 predictor_scaler=True,
                 scoring_method='r2',
                 score_func=r2_score,
@@ -686,13 +690,14 @@ class SequentialFeatureSelection():
 
             # Filter features based on intrinsic information like mutual information
             if intrinsic_filter_func is not None:
+                print(f"Starting features to select from {feature_ids_to_select}")
                 filtered_subsets, feature_ids_to_select = intrinsic_filter_func(Xi_train, 
                                                             yi_train, 
                                                             feature_inds_to_filter, 
                                                             intrinsic_filter_K,
                                                             other_inds=feature_ids_to_select)
                 if_K_selected_feats[i, :, :] = filtered_subsets
-                print(f"reducing features to {len(feature_ids_to_select)}")
+                print(f"reducing features to {feature_ids_to_select}")
 
 
 
@@ -821,3 +826,132 @@ class SequentialFeatureSelection():
         
 
         return selected_features_ids, selected_test_scores, all_test_scores
+    
+    @staticmethod
+    def do_forward_selection_cv(X,
+                                y,
+                                feature_ids_to_select,
+                                cv_outer,
+                                inner_grid_search,
+                                scoring_method,
+                                larger_score_is_better=True,
+                                required_feature_ids=None,
+                                early_stopping_tol=-1,
+                                verbose=False):
+        
+        assert not np.any(np.isin(required_feature_ids, 
+                              feature_ids_to_select)), ValueError("Required feature cannot be in the features to select")
+
+        n_features_to_select_from = len(feature_ids_to_select)
+        feat_selection = np.arange(n_features_to_select_from) #np.copy(feature_inds_to_select)
+
+        cnt = 0
+        best_mean_score = 0        
+        starting_feature_size = 0
+        # mean, min, max
+        selected_test_scores_stats = []
+        all_test_scores = np.full((n_features_to_select_from, n_features_to_select_from, 3), np.nan)
+        selected_features_ids = [] 
+
+        if required_feature_ids is not None:
+            starting_feature_size = len(required_feature_ids)
+            selected_features_ids = list(required_feature_ids)
+            print(selected_features_ids)
+            cnt += starting_feature_size
+            X_req = np.copy(X[:, required_feature_ids])
+            cv_scores = cross_validate(inner_grid_search, 
+                                        X_req, 
+                                        y, 
+                                        scoring=scoring_method, 
+                                        cv=cv_outer, 
+                                        return_estimator=False)
+            mean_cv_score = np.mean(cv_scores['test_score'])
+            min_cv_score = np.min(cv_scores['test_score'])
+            max_cv_score = np.max(cv_scores['test_score'])
+            selected_test_scores_stats.append([mean_cv_score, min_cv_score, max_cv_score])
+            best_mean_score = mean_cv_score
+        else:
+            selected_test_scores_stats.append([0, 0, 0])
+
+        for it in range(n_features_to_select_from):
+            for feature_ind in feat_selection:
+                feature_id = feature_ids_to_select[feature_ind]
+                feature_sub = feature_id
+                if cnt == 0:
+                    X_sub = np.copy(X[:, feature_id:feature_id+1])
+                else:
+                    feature_sub = np.concatenate([selected_features_ids, [feature_id]])
+                    X_sub = np.copy(X[:, feature_sub])
+
+                cv_scores = cross_validate(inner_grid_search, 
+                                            X_sub, 
+                                            y, 
+                                            scoring=scoring_method, 
+                                            cv=cv_outer, 
+                                            return_estimator=False)
+                mean_cv_score = np.mean(cv_scores['test_score'])
+                min_cv_score = np.min(cv_scores['test_score'])
+                max_cv_score = np.max(cv_scores['test_score'])                
+                all_test_scores[it, feature_ind, :] = [mean_cv_score, min_cv_score, max_cv_score]
+                if verbose:
+                    print(feature_sub, mean_cv_score)
+
+
+            if larger_score_is_better:
+                feat_to_add_ind = np.nanargmax(all_test_scores[it, :, 0])
+                best_it_score = np.nanmax(all_test_scores[it, :, 0])
+            else:
+                feat_to_add_ind = np.nanargmin(all_test_scores[it, :, 0])
+                best_it_score = np.nanmin(all_test_scores[it, :, 0])
+
+            selected_features_ids.append(feature_ids_to_select[feat_to_add_ind])
+            selected_test_scores_stats.append(all_test_scores[it, feat_to_add_ind, :])
+            
+            feat_selection = np.delete(feat_selection, 
+                                       np.where(feat_selection==feat_to_add_ind)[0][0])
+            
+            cnt += 1
+
+            if not score_comparison_func(best_mean_score, 
+                                     best_it_score, 
+                                     larger_score_is_better,
+                                     tol=early_stopping_tol) and it < n_features_to_select_from-1:
+                print('Stopping early')
+                all_test_scores = all_test_scores[:it+1, :]
+                break
+
+            if score_comparison_func(best_mean_score, 
+                                     best_it_score, 
+                                     larger_score_is_better):
+                best_mean_score = best_it_score
+        
+        selected_test_scores_stats = np.concatenate(selected_test_scores_stats).reshape(it+2, 3)
+
+        return selected_features_ids, selected_test_scores_stats, all_test_scores
+
+class UnsupervisedFeatureSelection():
+    @staticmethod
+    def remove_highly_correlated_features(X, thresh=0.75):
+        # Get correlation values below the diagonal
+        feature_corr_tril = np.tril(pd.DataFrame(X).corr(), -1)
+        feature_corr = pd.DataFrame(X).corr()
+        dropped_feature_inds = []
+        for i in range(feature_corr.shape[0]):
+            max_corr = np.nanmax(feature_corr_tril)
+            if max_corr < thresh:
+                break
+            A, B = np.unravel_index(np.nanargmax(feature_corr_tril), feature_corr.shape)
+            A_corrs = np.delete(feature_corr.iloc[A].values, [A, B])
+            B_corrs = np.delete(feature_corr.iloc[B].values, [A, B])
+            drop_ind = B
+            if np.nanmean(A_corrs) > np.nanmean(B_corrs):
+                drop_ind = A
+            dropped_feature_inds.append(drop_ind)
+            feature_corr.iloc[drop_ind] = np.nan
+            feature_corr[drop_ind] = np.nan
+            feature_corr_tril[:, drop_ind] = np.nan
+            feature_corr_tril[drop_ind, :] = np.nan
+
+        kept_features = np.isin(np.arange(0, feature_corr.shape[0]), dropped_feature_inds, invert=True)
+
+        return kept_features
