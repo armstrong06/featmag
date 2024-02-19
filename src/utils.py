@@ -50,7 +50,27 @@ class NumpyEncoder(json.JSONEncoder):
             return int(obj)
         return json.JSONEncoder.default(self, obj)
 
+@staticmethod
+def score_comparison_func(s_old, s_new, larger_score_is_better, tol=0):
+    """Check if a new score is better than an old score.
 
+    Args:
+        s_old (_type_): _description_
+        s_new (_type_): _description_
+        larger_score_is_better (_type_): _description_
+
+    Returns:
+        _type_: _description_
+    """
+    if larger_score_is_better:
+        if s_new-s_old > tol:
+            return True
+    else:
+        if s_new-s_old < tol:
+            return True
+        
+    return False
+    
 class CrossValidation:
 
     @staticmethod
@@ -82,10 +102,12 @@ class CrossValidation:
         return search, cv_inner
 
     @staticmethod
-    def do_gridsearchcv(gs, Xtrain, ytrain, Xtest):
+    def do_gridsearchcv(gs, Xtrain, ytrain, Xtest=None):
         """Fit the gridsearch (gs) and make the test predictions"""
         gs_results = gs.fit(Xtrain, ytrain)
-        yhat = gs_results.predict(Xtest)
+        yhat = None
+        if Xtest is not None:
+            yhat = gs_results.predict(Xtest)
         return gs_results, yhat
 
     @staticmethod
