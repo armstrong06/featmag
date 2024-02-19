@@ -106,10 +106,11 @@ class IntrinsicFeatureSelection():
         return discrete_feat_bool
 
     @staticmethod
-    def MI_filter_func(X, y, subsets, K, verbose=False):
-        other_inds = np.arange(0, X.shape[1])[np.isin(np.arange(0, X.shape[1]), 
-                                                      np.concatenate(subsets), 
-                                                      invert=True)]
+    def MI_filter_func(X, y, subsets, K, verbose=False, other_inds=None):
+        if other_inds is None:
+            other_inds = np.arange(0, X.shape[1])[np.isin(np.arange(0, X.shape[1]), 
+                                                        np.concatenate(subsets), 
+                                                        invert=True)]
         filtered_inds = np.zeros((len(subsets), K), dtype=int)
         for i, subset in enumerate(subsets):
             Xi = X[:, subset]
@@ -605,7 +606,8 @@ class SequentialFeatureSelection():
                 y,
                 predictor_model,
                 param_grid,
-                selector_func,
+                feature_ids_to_select,
+                required_feature_ids,
                 predictor_scaler=True,
                 scoring_method='r2',
                 score_func=r2_score,
@@ -656,14 +658,19 @@ class SequentialFeatureSelection():
                                                                 cv_random_state=cv_random_state, 
                                                                 refit_model=True)
 
-        N = X.shape[-1]
+        N = len(feature_ids_to_select)
         if intrinsic_filter_func is not None:
             N = N - np.concatenate(feature_inds_to_filter).shape[0] + len(feature_inds_to_filter)*intrinsic_filter_K
-        
+        N_required = 0
+        if required_feature_ids is not None:
+            N_required = len(required_feature_ids)
         # Array to store the test performance values for each fold and each N
-        rfecv_N_scores = np.full((cv_folds_outer, N), 0, dtype=float)
+        # output of forward selection is N+1
+        cv_N_scores = np.full((cv_folds_outer, N + 1), 0, dtype=float)
+        # Store the scores for each of the forward selection iterations 
+        cv_all_feature_scores = np.full((cv_folds_outer, N, N), 0, dtype=float)
         # Store the best features for each fold (array of arrays)
-        rfecv_selected_feats = []
+        selected_feats_order = np.zeros((cv_folds_outer, N), dtype=int)
         if_K_selected_feats = None
         if intrinsic_filter_func is not None:
             if_K_selected_feats = np.full((cv_folds_outer, 
@@ -671,7 +678,6 @@ class SequentialFeatureSelection():
                                             intrinsic_filter_K), -1)
         start_time = time.time()
         # Loop over the outer folds
-        selected_inds = np.arange(N)
         for i, splits_inds in enumerate(cv_outer.split(X)):
             # Get the folds training and testing data
             train_ix, test_ix = splits_inds
@@ -680,50 +686,46 @@ class SequentialFeatureSelection():
 
             # Filter features based on intrinsic information like mutual information
             if intrinsic_filter_func is not None:
-                filtered_subsets, selected_inds = intrinsic_filter_func(Xi_train, 
-                                                                        yi_train, 
-                                                                        feature_inds_to_filter, 
-                                                                        intrinsic_filter_K)
+                filtered_subsets, feature_ids_to_select = intrinsic_filter_func(Xi_train, 
+                                                            yi_train, 
+                                                            feature_inds_to_filter, 
+                                                            intrinsic_filter_K,
+                                                            other_inds=feature_ids_to_select)
                 if_K_selected_feats[i, :, :] = filtered_subsets
-                print(f"reducing features to {len(selected_inds)}")
-                Xi_train = Xi_train[:, selected_inds]
-                Xi_test = Xi_test[:, selected_inds]
+                print(f"reducing features to {len(feature_ids_to_select)}")
 
 
-            fselector, pred_gs_result, yhat = selector_func(Xi_train,
-                                                            yi_train,
-                                                            inner_grid_search,
-                                                            X_test=Xi_test)
 
-            # Evaluate the predictor on the folds test set
-            predictor_score = score_func(yi_test, yhat)
-            # Save the score
-            rfecv_N_scores[i, n_feats-1] = predictor_score
-
-            # Keep track of the best features for every fold
-            if score_comparison_func(best_score, predictor_score, larger_score_is_better):
-                best_score = predictor_score
-                best_N = n_feats
-                best_feats = selected_inds[fselector.support_]
-
-            # Store the best feature set for every fold
-            print(f"Fold {i}: N={best_N}, test_score={best_score:0.3f}")
-            rfecv_selected_feats.append(best_feats)
+            selected_features_ids, selected_test_scores, all_test_scores = SequentialFeatureSelection.do_forward_selection(Xi_train,
+                                                                                            yi_train,
+                                                                                            Xi_test,
+                                                                                            yi_test,
+                                                                                            inner_grid_search,
+                                                                                            feature_ids_to_select,
+                                                                                            score_func,
+                                                                                            larger_score_is_better=larger_score_is_better,
+                                                                                            required_feature_ids=required_feature_ids)
+            # Don't save the required features (unless I updated it to rank the required features)
+            selected_feats_order[i, :] = selected_features_ids[N_required:]
+            cv_N_scores[i, :] = selected_test_scores
+            cv_all_feature_scores[i, :, :] = all_test_scores
+            # Print the best N (in addition to required features) for the fold
+            print(f"Fold {i}: N={np.argmax(selected_test_scores)}, test_score={np.max(selected_test_scores):0.3f}")
 
         print(f"total time: {time.time()-start_time:0.2f} s")
         # Set the final n as the one with the best mean performance over all folds
-        average_N_scores = rfecv_N_scores.mean(axis=0)
+        average_N_scores = cv_N_scores.mean(axis=0)
         if larger_score_is_better:
-            final_N = np.argmax(average_N_scores) + 1
+            final_N = np.argmax(average_N_scores)
             final_N_score_avg = np.max(average_N_scores)
         else:
-            final_N = np.argmin(average_N_scores) + 1
+            final_N = np.argmin(average_N_scores)
             final_N_score_avg = np.min(average_N_scores)
 
         print(f"Selected number of features: {final_N} (avg. score of {final_N_score_avg:0.2f})")
 
-        results = {"RFECV_N_scores": rfecv_N_scores,
-                    "RFECV_selected_feats":rfecv_selected_feats,
+        results = {"N_scores": cv_N_scores,
+                    "selected_feats":selected_feats_order,
                     "intrinsic_K_feature_selection":if_K_selected_feats}
 
         return final_N, results
@@ -767,6 +769,8 @@ class SequentialFeatureSelection():
             score = score_func(y_test, yhat)
             selected_test_scores.append(score)
             best_score = score
+        else:
+            selected_test_scores.append(0)
 
         for it in range(n_features_to_select_from):
             for feature_ind in feat_selection:
