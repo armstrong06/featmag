@@ -588,3 +588,31 @@ def actual_v_network_avg_prediction(df_list,
     ax.set_ylim(plot_lims);
     ax.set_xlim(plot_lims)
     ax.set_aspect('equal', adjustable='box')
+
+def plot_sequential_all_feature_scores(all_scores, initial_score=0.0):
+    feat_max = np.insert(np.nanmax(all_scores[:, :, 0], axis=1), 0, initial_score)
+    feat_min = np.insert(np.nanmin(all_scores[:, :, 0], axis=1), 0, initial_score)
+    feat_mean = np.insert(np.nanmean(all_scores[:, :, 0], axis=1), 0, initial_score)
+    x = np.arange(feat_max.shape[0])
+    plt.fill_between(x, feat_max, feat_min, color='gray', alpha=0.5)
+    plt.plot(x, feat_mean, color='k', label='mean of all features', linestyle='--')
+    plt.plot(x, feat_max, color='r', label='max feature', marker='x')
+    plt.plot(x, feat_min, color='k', label='min feature')
+    plt.xticks(x)
+    plt.xlabel("N features")
+    plt.ylabel("Mean CV $R^2$")
+    plt.legend(loc='lower right')
+    plt.title("Mean CV $R^2$ for Considered Features")
+
+def plot_sequential_selected_feature_scores(ids_scores, 
+                                            feature_names, 
+                                            base_set_name="None"):
+    feat_plot_names = np.concatenate([[base_set_name], feature_names])
+    x = np.arange(ids_scores.shape[0])
+    plt.fill_between(x, ids_scores[:, 1], ids_scores[:, 2], color='gray', alpha=0.5, label='CV min, max')
+    plt.plot(x, ids_scores[:, 0], color='k', marker='x', label='CV mean')
+    plt.xticks(x, feat_plot_names, rotation=90)
+    plt.xlabel("Selected features")
+    plt.ylabel("CV $R^2$")
+    plt.legend(loc='lower right')
+    plt.title("CV $R^2$ Ranges for Selected Features")

@@ -106,17 +106,17 @@ class IntrinsicFeatureSelection():
         return discrete_feat_bool
 
     @staticmethod
-    def MI_filter_func(X, y, subsets, K, verbose=False, other_inds=None):
-        if other_inds is None:
-            other_inds = np.arange(0, X.shape[1])[np.isin(np.arange(0, X.shape[1]), 
-                                                        np.concatenate(subsets), 
-                                                        invert=True)]
-        else:
-            other_inds = other_inds[np.isin(other_inds, 
-                                            np.concatenate(subsets), 
-                                            invert=True)]
+    def MI_filter_func(X, y, subsets, K, verbose=False, input_inds=None):
+        if input_inds is None:
+            input_inds = np.arange(0, X.shape[1])
+
+        other_inds = input_inds[np.isin(input_inds, 
+                                        np.concatenate(subsets), 
+                                        invert=True)]
         filtered_inds = np.zeros((len(subsets), K), dtype=int)
         for i, subset in enumerate(subsets):
+            # filter the subset to only contain values in the input_inds
+            subset = subset[np.isin(subset, input_inds)]
             Xi = X[:, subset]
             yi = y[:]
             filtered_inds[i, :] = subset[np.argsort(-1*IntrinsicFeatureSelection.mutual_reg_feature_selection(Xi, yi).scores_)[0:K]]
@@ -257,11 +257,13 @@ class CustomRFECV:
 
         print(f"Selected number of features: {final_N} (avg. score of {final_N_score_avg:0.2f})")
 
-        results = {"RFECV_N_scores": rfecv_N_scores,
-                   "RFECV_selected_feats":rfecv_selected_feats,
+        results = {"best_N":final_N,
+                   "best_N_score":final_N_score_avg,
+                   "N_scores": rfecv_N_scores,
+                   "selected_feats":rfecv_selected_feats,
                    "intrinsic_K_feature_selection":if_K_selected_feats}
 
-        return final_N, results
+        return results
 
     @staticmethod
     def custom_rfe(X_train, 
@@ -623,7 +625,8 @@ class SequentialFeatureSelection():
                 larger_score_is_better=True,
                 intrinsic_filter_func=None,
                 feature_inds_to_filter=None,
-                intrinsic_filter_K=5
+                intrinsic_filter_K=5,
+                verbose = False
                 ):
         """
         Args:
@@ -664,7 +667,7 @@ class SequentialFeatureSelection():
 
         N = len(feature_ids_to_select)
         if intrinsic_filter_func is not None:
-            N = N - np.concatenate(feature_inds_to_filter).shape[0] + len(feature_inds_to_filter)*intrinsic_filter_K
+            N = N - np.isin(np.concatenate(feature_inds_to_filter), feature_ids_to_select).sum() + len(feature_inds_to_filter)*intrinsic_filter_K
         N_required = 0
         if required_feature_ids is not None:
             N_required = len(required_feature_ids)
@@ -683,6 +686,7 @@ class SequentialFeatureSelection():
         start_time = time.time()
         # Loop over the outer folds
         for i, splits_inds in enumerate(cv_outer.split(X)):
+            feature_ids_to_select_i = np.copy(feature_ids_to_select)
             # Get the folds training and testing data
             train_ix, test_ix = splits_inds
             Xi_train, Xi_test = X[train_ix, :], X[test_ix, :]
@@ -690,26 +694,27 @@ class SequentialFeatureSelection():
 
             # Filter features based on intrinsic information like mutual information
             if intrinsic_filter_func is not None:
-                print(f"Starting features to select from {feature_ids_to_select}")
-                filtered_subsets, feature_ids_to_select = intrinsic_filter_func(Xi_train, 
+                print(f"Starting features to select from {feature_ids_to_select_i}")
+                filtered_subsets, feature_ids_to_select_i = intrinsic_filter_func(Xi_train, 
                                                             yi_train, 
                                                             feature_inds_to_filter, 
                                                             intrinsic_filter_K,
-                                                            other_inds=feature_ids_to_select)
+                                                            input_inds=feature_ids_to_select_i)
                 if_K_selected_feats[i, :, :] = filtered_subsets
-                print(f"reducing features to {feature_ids_to_select}")
+                print(f"reducing features to {feature_ids_to_select_i}")
 
 
 
             selected_features_ids, selected_test_scores, all_test_scores = SequentialFeatureSelection.do_forward_selection(Xi_train,
                                                                                             yi_train,
-                                                                                            Xi_test,
-                                                                                            yi_test,
                                                                                             inner_grid_search,
-                                                                                            feature_ids_to_select,
-                                                                                            score_func,
+                                                                                            feature_ids_to_select_i,
+                                                                                            X_test=Xi_test,
+                                                                                            y_test=yi_test,
+                                                                                            score_func=score_func,
                                                                                             larger_score_is_better=larger_score_is_better,
-                                                                                            required_feature_ids=required_feature_ids)
+                                                                                            required_feature_ids=required_feature_ids,
+                                                                                            verbose=verbose)
             # Don't save the required features (unless I updated it to rank the required features)
             selected_feats_order[i, :] = selected_features_ids[N_required:]
             cv_N_scores[i, :] = selected_test_scores
@@ -731,21 +736,23 @@ class SequentialFeatureSelection():
 
         results = {"N_scores": cv_N_scores,
                     "selected_feats":selected_feats_order,
-                    "intrinsic_K_feature_selection":if_K_selected_feats}
+                    "intrinsic_K_feature_selection":if_K_selected_feats,
+                    "all_sequential_scores":cv_all_feature_scores}
 
         return final_N, results
     
     @staticmethod
     def do_forward_selection(X_train,
                              y_train,
-                             X_test,
-                             y_test,
-                            inner_grid_search,
+                             inner_grid_search,
                              feature_ids_to_select,
-                             score_func,
+                             X_test=None,
+                             y_test=None,
+                             score_func=r2_score,
                              larger_score_is_better=True,
                              required_feature_ids=None,
-                             early_stopping_tol=-1):
+                             early_stopping_tol=-1,
+                             verbose=False):
         
         assert not np.any(np.isin(required_feature_ids, 
                               feature_ids_to_select)), ValueError("Required feature cannot be in the features to select")
@@ -766,12 +773,17 @@ class SequentialFeatureSelection():
             print(selected_features_ids)
             cnt += starting_feature_size
             X_req = np.copy(X_train[:, required_feature_ids])
-            X_req_test = np.copy(X_test[:, required_feature_ids])
+            X_req_test = None
+            if X_test is not None:
+                X_req_test = np.copy(X_test[:, required_feature_ids])
             gs_results, yhat = CrossValidation.do_gridsearchcv(inner_grid_search,
                                                                 X_req,
                                                                 y_train,
                                                                 Xtest=X_req_test)
-            score = score_func(y_test, yhat)
+            if y_test is not None:
+                score = score_func(y_test, yhat)
+            else:
+                score, cv_std, params = CrossValidation.get_gridsearchcv_best_results(gs_results)
             selected_test_scores.append(score)
             best_score = score
         else:
@@ -780,21 +792,30 @@ class SequentialFeatureSelection():
         for it in range(n_features_to_select_from):
             for feature_ind in feat_selection:
                 feature_id = feature_ids_to_select[feature_ind]
+                feature_sub = [feature_id]
+                X_sub_test = None
                 if cnt == 0:
                     X_sub = np.copy(X_train[:, feature_id:feature_id+1])
-                    X_sub_test = np.copy(X_test[:, feature_id:feature_id+1])
+                    if X_test is not None:
+                        X_sub_test = np.copy(X_test[:, feature_id:feature_id+1])
                 else:
                     feature_sub = np.concatenate([selected_features_ids, [feature_id]])
                     X_sub = np.copy(X_train[:, feature_sub])
-                    X_sub_test = np.copy(X_test[:, feature_sub])
-                    print(feature_sub)
+                    if X_test is not None:
+                        X_sub_test = np.copy(X_test[:, feature_sub])
+                    #print(feature_sub)
 
                 gs_results, yhat = CrossValidation.do_gridsearchcv(inner_grid_search,
                                                                 X_sub,
                                                                 y_train,
                                                                 Xtest=X_sub_test)
-                score = score_func(y_test, yhat)
+                if y_test is not None:
+                    score = score_func(y_test, yhat)
+                else:
+                    score, cv_std, params = CrossValidation.get_gridsearchcv_best_results(gs_results)
                 all_test_scores[it, feature_ind] = score
+                if verbose:
+                    print(feature_sub, score)
 
             if larger_score_is_better:
                 feat_to_add_ind = np.nanargmax(all_test_scores[it, :])
@@ -837,7 +858,8 @@ class SequentialFeatureSelection():
                                 larger_score_is_better=True,
                                 required_feature_ids=None,
                                 early_stopping_tol=-1,
-                                verbose=False):
+                                verbose=False,
+                                n_jobs=1):
         
         assert not np.any(np.isin(required_feature_ids, 
                               feature_ids_to_select)), ValueError("Required feature cannot be in the features to select")
@@ -856,7 +878,6 @@ class SequentialFeatureSelection():
         if required_feature_ids is not None:
             starting_feature_size = len(required_feature_ids)
             selected_features_ids = list(required_feature_ids)
-            print(selected_features_ids)
             cnt += starting_feature_size
             X_req = np.copy(X[:, required_feature_ids])
             cv_scores = cross_validate(inner_grid_search, 
@@ -864,12 +885,14 @@ class SequentialFeatureSelection():
                                         y, 
                                         scoring=scoring_method, 
                                         cv=cv_outer, 
-                                        return_estimator=False)
+                                        return_estimator=False,
+                                        n_jobs=n_jobs)
             mean_cv_score = np.mean(cv_scores['test_score'])
             min_cv_score = np.min(cv_scores['test_score'])
             max_cv_score = np.max(cv_scores['test_score'])
             selected_test_scores_stats.append([mean_cv_score, min_cv_score, max_cv_score])
             best_mean_score = mean_cv_score
+            print(selected_features_ids, mean_cv_score)
         else:
             selected_test_scores_stats.append([0, 0, 0])
 
@@ -888,7 +911,8 @@ class SequentialFeatureSelection():
                                             y, 
                                             scoring=scoring_method, 
                                             cv=cv_outer, 
-                                            return_estimator=False)
+                                            return_estimator=False,
+                                            n_jobs=n_jobs)
                 mean_cv_score = np.mean(cv_scores['test_score'])
                 min_cv_score = np.min(cv_scores['test_score'])
                 max_cv_score = np.max(cv_scores['test_score'])                
