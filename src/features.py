@@ -56,6 +56,11 @@ class SplitFeatures():
                                                                                                       how='outer', on='station').sort_values('cnt_x', ascending=False).rename(columns={'cnt_x': 'cnt_train',
                                                                                                                                                                                        'cnt_y': 'cnt_test'})
 
+    def add_station_holdout_counts(feats_holdout, train_test_counts):
+        return train_test_counts.merge(feats_holdout.groupby('station')['station'].count().rename('cnt_holdout').reset_index(), 
+               on='station', 
+               how='outer')
+
     def compute_min_test_examples(min_train, train_frac, phase='P'):
         frac = round((1-train_frac)/train_frac, 2)
         min_test = round(min_train*frac)
@@ -96,7 +101,23 @@ class SplitFeatures():
         print(
             f"Original {phase} size: {features_df.shape[0]} ({features_df['station'].unique().shape[0]} stations) \nFiltered {phase} size: {features_filt.shape[0]} ({features_filt['station'].unique().shape[0]} stations)")
         return features_filt
-
+    
+    def filter_good_stations_by_location(good_stats_df, 
+                                         stat_info_df,
+                                         lat_min,
+                                         lat_max, 
+                                         lon_min, 
+                                         lon_max):
+        assert lat_min < lat_max, "lat_min must be smaller than lat_max"
+        assert lon_min < lon_max, "lon_min must be smaller than lon_max"
+        good_stats_df = good_stats_df.merge(stat_info_df, how='left')
+        print(f"Started with {len(good_stats_df)} stations")
+        good_stats_df = good_stats_df[(good_stats_df['receiver_lat'] > lat_min) & 
+                (good_stats_df['receiver_lat'] < lat_max) &
+                (good_stats_df['receiver_lon'] > lon_min) &
+                (good_stats_df['receiver_lon'] < lon_max)]
+        print(f"Now have {len(good_stats_df)} stations")
+        return good_stats_df
 
 class FeaturePlots():
     def plot_station_feature_box_whisker(df, feature, ylabel=None, sort_counts=True, thresholds=None, showfliers=True, min_y_line=None):
