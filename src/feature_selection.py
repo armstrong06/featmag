@@ -6,7 +6,7 @@ from sklearn.metrics import r2_score
 import time
 from sklearn.base import clone
 
-from src.utils import CrossValidation, score_comparison_func
+from src.utils import CrossValidation, score_comparison_func, select_N_one_standard_error
 
 
 class IntrinsicFeatureSelection():
@@ -127,147 +127,147 @@ class IntrinsicFeatureSelection():
 class CustomRFECV:
     
     @staticmethod
-    def do_rfecv(X,
-                y,
-                estimator_model,
-                predictor_model,
-                param_grid,
-                estimator_scaler=True,
-                predictor_scaler=True,
-                scoring_method='r2',
-                score_func=r2_score,
-                n_jobs=1,
-                cv_folds_outer=10,
-                cv_folds_inner=5,
-                n_outer_repeats=1,
-                cv_random_state=2652124,
-                larger_score_is_better=True,
-                intrinsic_filter_func=None,
-                feature_inds_to_filter=None,
-                intrinsic_filter_K=5
-                ):
-        """
-        Args:
-            X (np.array): Training features
-            y (np.array): Training target
-            estimator_model (_type_): SKLearn model for selecting features. Must have coef_ or feature_importances_ attribute.
-            model (_type_): SKlearn model to train.
-            param_grid (dict): Parameter space to search for model.
-            estimator_scaler (bool, optional): If the data needs to be scaled using StandardScaler for the estimator model. Defaults to True.
-            model_scaler (bool, optional): If the data needs to be scaled using StandardScaler for the model. Defaults to True.
-            scoring_method(str, optional): The scoring method to use in RFECV and GridSearchCV. Defaults to 'r2'.
-            score_func (function, optional): The function used to evaluate the final models in each fold. Defaults to r2_score.
-            n_jobs (int, optional): The number of jobs to use in RFECV and GridSearchCV. Defaults to 1.
-            cv_folds_outer (int, optional): The number of folds in the outer KFold CV loop. Defaults to 10.
-            cv_folds_inner (int, optional): The number of folds to use in RFECV and GridSearchCV. Defaults to 5.
-            n_outer_repeats (int, optional): The number of times to repeat the outer KFold CV. Defaults to 1.
-            cv_random_state (int, optional): The random state to use for the inner and outer KFolds. Defaults to 2652124. 
-            estimator_feat_transform
-        Raises:
-            ValueError: If the estimator model does not have oef_ or feature_importances_ attribute.
+    # def do_rfecv_slow(X,
+    #             y,
+    #             estimator_model,
+    #             predictor_model,
+    #             param_grid,
+    #             estimator_scaler=True,
+    #             predictor_scaler=True,
+    #             scoring_method='r2',
+    #             score_func=r2_score,
+    #             n_jobs=1,
+    #             cv_folds_outer=10,
+    #             cv_folds_inner=5,
+    #             n_outer_repeats=1,
+    #             cv_random_state=2652124,
+    #             larger_score_is_better=True,
+    #             intrinsic_filter_func=None,
+    #             feature_inds_to_filter=None,
+    #             intrinsic_filter_K=5
+    #             ):
+    #     """
+    #     Args:
+    #         X (np.array): Training features
+    #         y (np.array): Training target
+    #         estimator_model (_type_): SKLearn model for selecting features. Must have coef_ or feature_importances_ attribute.
+    #         model (_type_): SKlearn model to train.
+    #         param_grid (dict): Parameter space to search for model.
+    #         estimator_scaler (bool, optional): If the data needs to be scaled using StandardScaler for the estimator model. Defaults to True.
+    #         model_scaler (bool, optional): If the data needs to be scaled using StandardScaler for the model. Defaults to True.
+    #         scoring_method(str, optional): The scoring method to use in RFECV and GridSearchCV. Defaults to 'r2'.
+    #         score_func (function, optional): The function used to evaluate the final models in each fold. Defaults to r2_score.
+    #         n_jobs (int, optional): The number of jobs to use in RFECV and GridSearchCV. Defaults to 1.
+    #         cv_folds_outer (int, optional): The number of folds in the outer KFold CV loop. Defaults to 10.
+    #         cv_folds_inner (int, optional): The number of folds to use in RFECV and GridSearchCV. Defaults to 5.
+    #         n_outer_repeats (int, optional): The number of times to repeat the outer KFold CV. Defaults to 1.
+    #         cv_random_state (int, optional): The random state to use for the inner and outer KFolds. Defaults to 2652124. 
+    #         estimator_feat_transform
+    #     Raises:
+    #         ValueError: If the estimator model does not have oef_ or feature_importances_ attribute.
 
-        Returns:
-            dict: Dictionary containing the results from each of the outer folds.
-        """
+    #     Returns:
+    #         dict: Dictionary containing the results from each of the outer folds.
+    #     """
 
-        cv_outer = RepeatedKFold(n_splits=cv_folds_outer, 
-                                n_repeats=n_outer_repeats, 
-                                random_state=cv_random_state)
+    #     cv_outer = RepeatedKFold(n_splits=cv_folds_outer, 
+    #                             n_repeats=n_outer_repeats, 
+    #                             random_state=cv_random_state)
 
-        estimator_pipeline = CrossValidation.make_simple_pipeline(estimator_model, 
-                                                                  estimator_scaler)
+    #     estimator_pipeline = CrossValidation.make_simple_pipeline(estimator_model, 
+    #                                                               estimator_scaler)
 
-        inner_grid_search, cv_inner = CrossValidation.setup_cv(predictor_model, 
-                                                                param_grid, 
-                                                                model_scaler=predictor_scaler, 
-                                                                scoring_method=scoring_method, 
-                                                                n_jobs=n_jobs, 
-                                                                cv_folds=cv_folds_inner, 
-                                                                cv_random_state=cv_random_state, 
-                                                                refit_model=True)
+    #     inner_grid_search, cv_inner = CrossValidation.setup_cv(predictor_model, 
+    #                                                             param_grid, 
+    #                                                             model_scaler=predictor_scaler, 
+    #                                                             scoring_method=scoring_method, 
+    #                                                             n_jobs=n_jobs, 
+    #                                                             cv_folds=cv_folds_inner, 
+    #                                                             cv_random_state=cv_random_state, 
+    #                                                             refit_model=True)
 
-        N = X.shape[-1]
-        if intrinsic_filter_func is not None:
-            N = N - np.concatenate(feature_inds_to_filter).shape[0] + len(feature_inds_to_filter)*intrinsic_filter_K
+    #     N = X.shape[-1]
+    #     if intrinsic_filter_func is not None:
+    #         N = N - np.concatenate(feature_inds_to_filter).shape[0] + len(feature_inds_to_filter)*intrinsic_filter_K
         
-        # Array to store the test performance values for each fold and each N
-        rfecv_N_scores = np.full((cv_folds_outer, N), 0, dtype=float)
-        # Store the best features for each fold (array of arrays)
-        rfecv_selected_feats = []
-        if_K_selected_feats = None
-        if intrinsic_filter_func is not None:
-            if_K_selected_feats = np.full((cv_folds_outer, 
-                                           len(feature_inds_to_filter), 
-                                           intrinsic_filter_K), -1)
-        start_time = time.time()
-        # Loop over the outer folds
-        selected_inds = np.arange(N)
-        for i, splits_inds in enumerate(cv_outer.split(X)):
-            # Get the folds training and testing data
-            train_ix, test_ix = splits_inds
-            Xi_train, Xi_test = X[train_ix, :], X[test_ix, :]
-            yi_train, yi_test = y[train_ix], y[test_ix]
+    #     # Array to store the test performance values for each fold and each N
+    #     rfecv_N_scores = np.full((cv_folds_outer, N), 0, dtype=float)
+    #     # Store the best features for each fold (array of arrays)
+    #     rfecv_selected_feats = []
+    #     if_K_selected_feats = None
+    #     if intrinsic_filter_func is not None:
+    #         if_K_selected_feats = np.full((cv_folds_outer, 
+    #                                        len(feature_inds_to_filter), 
+    #                                        intrinsic_filter_K), -1)
+    #     start_time = time.time()
+    #     # Loop over the outer folds
+    #     selected_inds = np.arange(N)
+    #     for i, splits_inds in enumerate(cv_outer.split(X)):
+    #         # Get the folds training and testing data
+    #         train_ix, test_ix = splits_inds
+    #         Xi_train, Xi_test = X[train_ix, :], X[test_ix, :]
+    #         yi_train, yi_test = y[train_ix], y[test_ix]
 
-            # Filter features based on intrinsic information like mutual information
-            if intrinsic_filter_func is not None:
-                filtered_subsets, selected_inds = intrinsic_filter_func(Xi_train, 
-                                                                        yi_train, 
-                                                                        feature_inds_to_filter, 
-                                                                        intrinsic_filter_K)
-                if_K_selected_feats[i, :, :] = filtered_subsets
-                print(f"reducing features to {len(selected_inds)}")
-                Xi_train = Xi_train[:, selected_inds]
-                Xi_test = Xi_test[:, selected_inds]
+    #         # Filter features based on intrinsic information like mutual information
+    #         if intrinsic_filter_func is not None:
+    #             filtered_subsets, selected_inds = intrinsic_filter_func(Xi_train, 
+    #                                                                     yi_train, 
+    #                                                                     feature_inds_to_filter, 
+    #                                                                     intrinsic_filter_K)
+    #             if_K_selected_feats[i, :, :] = filtered_subsets
+    #             print(f"reducing features to {len(selected_inds)}")
+    #             Xi_train = Xi_train[:, selected_inds]
+    #             Xi_test = Xi_test[:, selected_inds]
 
-            best_score = -1
-            best_N = -1
-            best_feats = None
-            # Loop over all possible number of features (1,...,N)
-            for n_feats in range(1, N+1):
-                fselector, pred_gs_result, yhat = CustomRFECV.custom_rfe(Xi_train,
-                                                                         yi_train,
-                                                                         estimator_pipeline,
-                                                                         n_feats,
-                                                                         inner_grid_search,
-                                                                         X_test=Xi_test)
+    #         best_score = -1
+    #         best_N = -1
+    #         best_feats = None
+    #         # Loop over all possible number of features (1,...,N)
+    #         for n_feats in range(1, N+1):
+    #             fselector, pred_gs_result, yhat = CustomRFECV.custom_rfe(Xi_train,
+    #                                                                      yi_train,
+    #                                                                      estimator_pipeline,
+    #                                                                      n_feats,
+    #                                                                      inner_grid_search,
+    #                                                                      X_test=Xi_test)
 
-                # Evaluate the predictor on the folds test set
-                predictor_score = score_func(yi_test, yhat)
-                # Save the score
-                rfecv_N_scores[i, n_feats-1] = predictor_score
+    #             # Evaluate the predictor on the folds test set
+    #             predictor_score = score_func(yi_test, yhat)
+    #             # Save the score
+    #             rfecv_N_scores[i, n_feats-1] = predictor_score
 
-                # Keep track of the best features for every fold
-                if score_comparison_func(best_score, predictor_score, larger_score_is_better):
-                    best_score = predictor_score
-                    best_N = n_feats
-                    best_feats = selected_inds[fselector.support_]
+    #             # Keep track of the best features for every fold
+    #             if score_comparison_func(best_score, predictor_score, larger_score_is_better):
+    #                 best_score = predictor_score
+    #                 best_N = n_feats
+    #                 best_feats = selected_inds[fselector.support_]
 
-            # Store the best feature set for every fold
-            print(f"Fold {i}: N={best_N}, test_score={best_score:0.3f}")
-            rfecv_selected_feats.append(best_feats)
+    #         # Store the best feature set for every fold
+    #         print(f"Fold {i}: N={best_N}, test_score={best_score:0.3f}")
+    #         rfecv_selected_feats.append(best_feats)
 
-        print(f"total time: {time.time()-start_time:0.2f} s")
-        # Set the final n as the one with the best mean performance over all folds
-        average_N_scores = rfecv_N_scores.mean(axis=0)
-        if larger_score_is_better:
-            final_N = np.argmax(average_N_scores) + 1
-            final_N_score_avg = np.max(average_N_scores)
-        else:
-            final_N = np.argmin(average_N_scores) + 1
-            final_N_score_avg = np.min(average_N_scores)
+    #     print(f"total time: {time.time()-start_time:0.2f} s")
+    #     # Set the final n as the one with the best mean performance over all folds
+    #     average_N_scores = rfecv_N_scores.mean(axis=0)
+    #     if larger_score_is_better:
+    #         final_N = np.argmax(average_N_scores) + 1
+    #         final_N_score_avg = np.max(average_N_scores)
+    #     else:
+    #         final_N = np.argmin(average_N_scores) + 1
+    #         final_N_score_avg = np.min(average_N_scores)
 
-        print(f"Selected number of features: {final_N} (avg. score of {final_N_score_avg:0.2f})")
+    #     print(f"Selected number of features: {final_N} (avg. score of {final_N_score_avg:0.2f})")
 
-        results = {"best_N":final_N,
-                   "best_N_score":final_N_score_avg,
-                   "N_scores": rfecv_N_scores,
-                   "selected_feats":rfecv_selected_feats,
-                   "intrinsic_K_feature_selection":if_K_selected_feats}
+    #     results = {"best_N":final_N,
+    #                "best_N_score":final_N_score_avg,
+    #                "N_scores": rfecv_N_scores,
+    #                "selected_feats":rfecv_selected_feats,
+    #                "intrinsic_K_feature_selection":if_K_selected_feats}
 
-        return results
+    #     return results
 
     @staticmethod
-    def do_rfecv_fast(X,
+    def do_rfecv(X,
                 y,
                 estimator_model,
                 predictor_model,
@@ -413,10 +413,14 @@ class CustomRFECV:
             final_N = np.argmin(average_N_scores) + 1
             final_N_score_avg = np.min(average_N_scores)
 
-        print(f"Selected number of features: {final_N} (avg. score of {final_N_score_avg:0.2f})")
+        oste_N = select_N_one_standard_error(average_N_scores, larger_score_is_better)
+        oste_score = average_N_scores[oste_N-1]
+        print(f"Selected number of features: {final_N} (avg. score of {final_N_score_avg:0.2f}); 1 STE: N={oste_N} (avg. {oste_score:0.2f})")
 
         results = {"best_N":final_N,
                    "best_N_score":final_N_score_avg,
+                   'oste_N': oste_N,
+                   'oste_N_score': oste_score,
                    "N_scores": rfecv_N_scores,
                    "selected_feats":rfecv_selected_feats,
                    "intrinsic_K_feature_selection":if_K_selected_feats}
