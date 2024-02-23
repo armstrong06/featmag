@@ -483,6 +483,94 @@ class CustomRFECV:
                                                                 Xfeat_test)
         return fselector, pred_gs_result, yhat
 
+    @staticmethod
+    def get_final_N_features(X,
+                    y,
+                    rfecv_results_dict,
+                    estimator_model,
+                    estimator_scaler,
+                    predictor_gs,
+                    filtered_feat_inds = None
+                    ):
+        estimator_pipeline = CrossValidation.make_simple_pipeline(estimator_model, 
+                                                             estimator_scaler)
+    
+        N_results = {}
+        N_feats_to_use = {'best':rfecv_results_dict['best_N'], 
+                        'oste': rfecv_results_dict['oste_N']}
+        if N_feats_to_use['best'] == N_feats_to_use['oste']:
+            N_feats_to_use['oste'] = None
+            N_results['oste'] = None
+
+        print(N_feats_to_use)
+        for N_key in N_feats_to_use.keys():
+            N_i = N_feats_to_use[N_key]
+            if N_i is None:
+                continue
+                
+            fselector, gs_results, _ = CustomRFECV.custom_rfe(X, 
+                                                            y,
+                                                            estimator_pipeline,
+                                                            N_i,
+                                                            predictor_gs)
+            cv_mean, cv_std, params = CrossValidation.get_gridsearchcv_best_results(gs_results)
+            print(f'{N_i}: CV Mean: {cv_mean:0.2f}, CV STD: {cv_std:0.2f}')
+            feature_subset = fselector.support_
+            if filtered_feat_inds is not None:
+                feature_subset = filtered_feat_inds[fselector.support_]
+            N_results[N_key] = {'selected_feature_inds':feature_subset,
+                            'pred_cv_mean':cv_mean,
+                            'pred_cv_std':cv_std,
+                            'pred_cv_params':params}
+            
+        return N_results
+    
+
+    @staticmethod
+    def get_final_N_features_estimator_tuning(X,
+                                                y,
+                                                rfecv_results_dict,
+                                                estimator_model,
+                                                estimator_scaler,
+                                                estimator_gs,
+                                                predictor_gs,
+                                                filtered_feat_inds = None
+                                                ):
+        
+        feature_inds_ranked = CustomRFECV.rank_features_by_importance(X,
+                                                                    y,
+                                                                    estimator_model,
+                                                                    estimator_scaler,
+                                                                    estimator_gs)
+        
+        N_results = {}
+        N_feats_to_use = {'best':rfecv_results_dict['best_N'], 
+                        'oste': rfecv_results_dict['oste_N']}
+        if N_feats_to_use['best'] == N_feats_to_use['oste']:
+            N_feats_to_use['oste'] = None
+            N_results['oste'] = None
+
+        print(N_feats_to_use)
+        for N_key in N_feats_to_use.keys():
+            N_i = N_feats_to_use[N_key]
+            if N_i is None:
+                continue
+                
+            feature_subset = feature_inds_ranked[0:N_i]
+            print(feature_subset)
+            gs_results, yhat = CrossValidation.do_gridsearchcv(predictor_gs,
+                                                                X[:, feature_subset],
+                                                                y)
+            cv_mean, cv_std, params = CrossValidation.get_gridsearchcv_best_results(gs_results)
+            print(f'{N_i}: CV Mean: {cv_mean:0.2f}, CV STD: {cv_std:0.2f}')
+            if filtered_feat_inds is not None:
+                feature_subset = filtered_feat_inds[feature_subset]
+            N_results[N_key] = {'selected_feature_inds':feature_subset,
+                            'pred_cv_mean':cv_mean,
+                            'pred_cv_std':cv_std,
+                            'pred_cv_params':params}
+            
+        return N_results
 
     @staticmethod
     def get_estimator_importance_getter(estimator_model):
