@@ -44,7 +44,7 @@ def compute_network_avg_prediction(df):
 
 def select_N_one_standard_error(N_avgs, larger_score_is_better):
     ste = np.std(N_avgs)/np.sqrt(len(N_avgs))
-    print(ste)
+    #print(ste)
     if larger_score_is_better:
         best_val = np.max(N_avgs)
         selected_N_ind = np.min(np.where(abs(best_val - N_avgs) < ste))
