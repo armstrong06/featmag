@@ -131,49 +131,117 @@ def get_boxplot_values(vals):
 
     return median, q1, q3, lower_adjacent_value, upper_adjacent_value
 
-def plot_nested_rfecv_boxplots(results_dict):
-    fig, ax = plt.subplots(2, 1)
-    ax, ax2 = ax
+def plot_rfecv_score_summary(rfecv_results_dict, rfe_results_dict,
+                               capsize=5,
+                               score_ylims=None,
+                               grids=False,
+                               rfecv_boxplot=False,
+                               best_sym = 'o',
+                               oste_sym='x',
+                               s=20,
+                               elinewidth=None,
+                               plot_N=False,
+                               N_ylims=None):
+    if not plot_N:
+        fig, axes = plt.subplots(2, 1, figsize=(5, 5))
+        ax_rfecv, ax_rfe = axes
+    else:
+        fig, axes = plt.subplots(3, 1, figsize=(7, 5))
+        ax_N, ax_rfecv, ax_rfe = axes
     # ax2 = ax.twinx()
-    results_df = pd.DataFrame(results_dict).T.reset_index().rename(columns={'index':'station'}).sort_values('station')
+    results_df = pd.DataFrame(rfecv_results_dict).T.reset_index().rename(columns={'index':'station'}).sort_values('station')
     xlabels = results_df['station']
     for i, row in results_df.iterrows():
-        ts_optfts = row['test_score_optfts']
-        ts_allfts = row['test_score_allfts']
-
-        median1, q1, q3, if1, if2 = get_boxplot_values(ts_optfts)
-        # ax.scatter(i, median, color='C0', marker='x', s=20)
-        ax.vlines(x=i, ymin=q1, ymax=q3, alpha=0.5, lw=5, color='C0')
-        ax.vlines(x=i, ymin=if1, ymax=if2, alpha=0.5, lw=1, color='C0')
-
-        median2, q1, q3, if1, if2 = get_boxplot_values(ts_allfts)
-        ax.vlines(x=i, ymin=q1, ymax=q3, alpha=0.5, lw=5, color='C1')
-        ax.vlines(x=i, ymin=if1, ymax=if2, alpha=0.5, lw=1, color='C1')
-
+        scores = np.array(row['N_scores'])
+        best_N = row['best_N']
+        oste_N = row['oste_N']
         label1, label2, = None, None
         if i == 1:
-            label1 = 'selected'
-            label2 = 'all'
-        ax.scatter(i, median1, color='C0', marker='x', s=20, zorder=5, label=label1)
-        ax.scatter(i, median2, color='C1', marker='x', s=20, zorder=5, alpha=0.7, label=label2)
+            label1 = 'best $\it{N}$'
+            label2 = '1 st. err. $\it{N}$'
 
-        n_feats = row['n_feats']
-        median, q1, q3, if1, if2 = get_boxplot_values(n_feats)
-        ax2.scatter(i, median, color='C3', marker='x', s=20)
-        ax2.vlines(x=i, ymin=q1, ymax=q3, alpha=0.5, lw=5, color='C3')
-        ax2.vlines(x=i, ymin=if1, ymax=if2, alpha=0.5, lw=1, color='C3')
-        
-    ax.set_xticks(np.arange(len(xlabels)), labels=[])
-    ax2.set_xticks(np.arange(len(xlabels)), labels=xlabels, rotation=90);
-    ax.set_ylabel(r'CV $R^2$')
-    ax2.set_ylabel(r'CV N Features')
-    ax.legend()
+        if plot_N:
+            ax_N.scatter(i, best_N, color='C0', marker=best_sym, s=s, zorder=5)
+            ax_N.scatter(i, oste_N, color='C1', marker=oste_sym, s=s, zorder=5)
+
+        ts_bestfeats = scores[:, best_N-1]
+        if rfecv_boxplot:
+            median1, q1, q3, if1, if2 = get_boxplot_values(ts_bestfeats)
+            # ax.scatter(i, median, color='C0', marker='x', s=20)
+            ax_rfecv.vlines(x=i, ymin=q1, ymax=q3, alpha=0.5, lw=5, color='C0')
+            ax_rfecv.vlines(x=i, ymin=if1, ymax=if2, alpha=0.5, lw=1, color='C0')
+            ax_rfecv.scatter(i, median1, color='C0', marker=best_sym, s=s, zorder=5)
+            ts_ostefeats, median2 = None, None
+            if best_N != oste_N:
+                ts_ostefeats = scores[:, row['oste_N']-1]
+                median2, q1, q3, if1, if2 = get_boxplot_values(ts_ostefeats)
+                ax_rfecv.vlines(x=i, ymin=q1, ymax=q3, alpha=0.5, lw=5, color='C1')
+                ax_rfecv.vlines(x=i, ymin=if1, ymax=if2, alpha=0.5, lw=1, color='C1')
+                ax_rfecv.scatter(i, median2, color='C1', marker=oste_sym, s=s, zorder=5, alpha=0.7, label=label2)
+        else:
+            ax_rfecv.errorbar(i, np.mean(ts_bestfeats), np.std(ts_bestfeats), color='C0',
+                     capsize=capsize,
+                     alpha=0.5,
+                     elinewidth=elinewidth)
+            ax_rfecv.scatter(i, np.mean(ts_bestfeats), color='C0', marker=best_sym, s=s,
+                              zorder=100)
+            if best_N != oste_N:
+                ts_ostefeats = scores[:, row['oste_N']-1]
+                ax_rfecv.errorbar(i, np.mean(ts_ostefeats), np.std(ts_ostefeats), color='C1',
+                     capsize=capsize,
+                     alpha=0.5, 
+                     elinewidth=elinewidth)
+                ax_rfecv.scatter(i, np.mean(ts_ostefeats), color='C1', marker=oste_sym, s=s,
+                           zorder=100)
+
+        stat = row['station']
+        rfe_best_mean = rfe_results_dict[stat]['best']['pred_cv_mean']
+        rfe_best_std = rfe_results_dict[stat]['best']['pred_cv_std']
+        ax_rfe.errorbar(i, rfe_best_mean, rfe_best_std, color='C0',
+                     capsize=capsize,
+                     alpha=0.5, 
+                     elinewidth=elinewidth)
+        ax_rfe.scatter(i, rfe_best_mean, color='C0', marker=best_sym, s=s, zorder=100,
+                       label=label1)
+        rfe_oste_dict =  rfe_results_dict[stat]['oste']
+        if rfe_oste_dict is not None:
+            rfe_oste_mean = rfe_results_dict[stat]['oste']['pred_cv_mean']
+            rfe_oste_std = rfe_results_dict[stat]['oste']['pred_cv_std']
+            ax_rfe.errorbar(i, rfe_oste_mean, rfe_oste_std, color='C1',
+                         capsize=capsize, alpha=0.5, 
+                         elinewidth=elinewidth)
+            ax_rfe.scatter(i, rfe_oste_mean, color='C1', marker=oste_sym, s=s, zorder=100,
+                           label=label2)
+
+    if plot_N:
+        ax_N.set_ylabel("$\it{N}$ Features", fontsize=9)
+        ax_N.set_xticks(np.arange(len(xlabels)), labels=[])
+        ax_N.set_ylim(N_ylims)
+        if grids:
+            ax_N.grid(axis='y')
+    ax_rfe.legend(fontsize=8)
+    ax_rfecv.set_xticks(np.arange(len(xlabels)), labels=[])
+    ax_rfe.set_xticks(np.arange(len(xlabels)), 
+                      labels=xlabels, 
+                      rotation=90,
+                      fontsize=8);
+    ax_rfecv.set_ylabel(r'RFECV $R^2$', fontsize=9)
+    ax_rfe.set_ylabel(r'Selected Feats. CV $R^2$', fontsize=9)
+    ax_rfecv.set_ylim(score_ylims)
+    ax_rfe.set_ylim(score_ylims)
+    if grids:
+        ax_rfecv.grid(axis='y')
+        ax_rfe.grid(axis='y')
+
+    for ax in axes:
+        for item in ax.get_yticklabels():
+            item.set_fontsize(8)
 
 def plot_rfecv_feature_heatmap(mega_df, 
-                               feature_names, 
                                ax=None,
                                plot_colorbar=True,
                                title=None):
+    feature_names = mega_df.index.values
     if ax is None:
         fig, ax = plt.subplots()
     mappable = ax.imshow(mega_df.to_numpy(), cmap=cm.Blues)
