@@ -600,7 +600,7 @@ class CustomRFECV:
                 Xt[:, ind], X[:, ind]), f'No transform happened for col {ind}'
         return Xt
 
-# Below are functions for looking at which features are important for a single station
+# Below are functions for looking at which features are important
 
     @staticmethod
     def count_feature_usage(cv_optfts_bool, feature_names):
@@ -686,7 +686,70 @@ class CustomRFECV:
                 0).astype({'impcnt': int})
 
         return imp_df
+    
+    @staticmethod
+    def get_rfecv_important_feature_counts(results_dict, 
+                                    feature_names,
+                                    oste_feats=False,
+                                    larger_score_is_better=True):
+        important_feats_df_dict = {}
+        for stat in results_dict.keys():
+            stat_feature_dict =  results_dict[stat]['selected_feats']
+            stat_N_scores = np.array(results_dict[stat]['N_scores'])
+            selected_feats_bool = np.zeros((len(stat_feature_dict), len(feature_names)), dtype=bool)
+            for i, fold_feats in enumerate(stat_feature_dict):
+                if oste_feats:
+                    oste_N = select_N_one_standard_error(stat_N_scores[i, :],
+                                                        larger_score_is_better=larger_score_is_better)
+                    fold_feats = fold_feats[0:oste_N-1]
+                bool_arr = np.zeros(len(feature_names), dtype=bool)
+                bool_arr[fold_feats] = True
+                selected_feats_bool[i, :] = bool_arr
+            feat_usage_df = CustomRFECV.count_feature_usage(selected_feats_bool, feature_names)
+            important_feats_df_dict[stat] = feat_usage_df[['Feature', 'cvcnt']].set_index('Feature')
 
+        return important_feats_df_dict
+
+    @staticmethod
+    def get_selected_feature_counts(results_dict, 
+                                    feature_names,
+                                    oste_feats=False,
+                                    larger_score_is_better=True):
+        important_feats_df_dict = {}
+        N_feats_key = 'best'
+        if oste_feats:
+            N_feats_key = 'oste'
+        for stat in results_dict.keys():
+            stat_feature_dict =  results_dict[stat]
+            fold_feats = stat_feature_dict[N_feats_key]['selected_feature_inds']
+            bool_arr = np.zeros(len(feature_names), dtype=bool)
+            bool_arr[fold_feats] = True
+            feat_usage_df = CustomRFECV.count_feature_usage([bool_arr], feature_names)
+            important_feats_df_dict[stat] = feat_usage_df[['Feature', 'cvcnt']].set_index('Feature')
+
+        return important_feats_df_dict
+    
+    @staticmethod
+    def make_feature_count_df(results_dict, 
+                          feature_names,
+                          feature_counting_func,
+                          oste_feats=False,
+                          larger_score_is_better=True):
+        feature_counts_dict = feature_counting_func(results_dict,
+                                                        feature_names,
+                                                        oste_feats=oste_feats,
+                                                        larger_score_is_better=larger_score_is_better)
+        # Combine the counts from each station
+        mega_df = None
+        for key in feature_counts_dict.keys():
+            key_dict = feature_counts_dict[key].rename(columns={'cvcnt': key})
+            if mega_df is None:
+                mega_df = key_dict
+            else:
+                mega_df = mega_df.merge(key_dict, on='Feature')
+        mega_df = mega_df.loc[feature_names][mega_df.columns.sort_values()]
+        mega_df_filtered = mega_df.loc[~(mega_df==0).all(axis=1)]
+        return mega_df_filtered
 # @staticmethod
     # def nested_rfecv(X,
     #                  y,
