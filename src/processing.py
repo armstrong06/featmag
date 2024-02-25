@@ -88,6 +88,22 @@ class TrainTestSplit():
             f"Original {phase} size: {features_df.shape[0]} ({features_df['station'].unique().shape[0]} stations) \nFiltered {phase} size: {features_filt.shape[0]} ({features_filt['station'].unique().shape[0]} stations)")
         return features_filt
 
+    def filter_good_stations_by_location(good_stats_df, 
+                                         stat_info_df,
+                                         lat_min,
+                                         lat_max, 
+                                         lon_min, 
+                                         lon_max):
+        assert lat_min < lat_max, "lat_min must be smaller than lat_max"
+        assert lon_min < lon_max, "lon_min must be smaller than lon_max"
+        good_stats_df = good_stats_df.merge(stat_info_df, how='left')
+        good_stats_df = good_stats_df[(good_stats_df['receiver_lat'] > lat_min) & 
+                (good_stats_df['receiver_lat'] < lat_max) &
+                (good_stats_df['receiver_lon'] > lon_min) &
+                (good_stats_df['receiver_lon'] < lon_max)]
+        
+        return good_stats_df
+
 
 class GatherFeatureDatasets():
     def __init__(self, is_p) -> None:
@@ -120,7 +136,7 @@ class GatherFeatureDatasets():
 
     def process_all_stations_datasets(self,
                                       train_df,
-                                      test_df,
+                                      test_df=None,
                                       holdout_df=None,
                                       freq_max=18,
                                       scaler=True,
@@ -134,7 +150,7 @@ class GatherFeatureDatasets():
         for station in train_df['station'].unique():
             feat_dict, meta_dict, stat_feat_names = self.process_station_datasets(station,
                                                                           train_df,
-                                                                          test_df,
+                                                                          test_df=test_df,
                                                                           holdout_df=holdout_df,
                                                                           freq_max=freq_max,
                                                                           scaler=scaler,
