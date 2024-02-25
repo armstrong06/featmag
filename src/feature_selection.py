@@ -333,19 +333,19 @@ class CustomRFECV:
                                                                 scoring_method=scoring_method, 
                                                                 n_jobs=n_jobs, 
                                                                 cv_folds=cv_folds_inner, 
-                                                                cv_random_state=cv_random_state, 
+                                                                cv_random_state=cv_random_state+1, 
                                                                 refit_model=False)
         N = X.shape[-1]
         if intrinsic_filter_func is not None:
             N = N - np.concatenate(feature_inds_to_filter).shape[0] + len(feature_inds_to_filter)*intrinsic_filter_K
         
         # Array to store the test performance values for each fold and each N
-        rfecv_N_scores = np.full((cv_folds_outer, N), 0, dtype=float)
+        rfecv_N_scores = np.full((cv_folds_outer*n_outer_repeats, N), 0, dtype=float)
         # Store the best features for each fold (array of arrays)
         rfecv_selected_feats = []
         if_K_selected_feats = None
         if intrinsic_filter_func is not None:
-            if_K_selected_feats = np.full((cv_folds_outer, 
+            if_K_selected_feats = np.full((cv_folds_outer*n_outer_repeats, 
                                            len(feature_inds_to_filter), 
                                            intrinsic_filter_K), -1)
         start_time = time.time()
@@ -518,7 +518,8 @@ class CustomRFECV:
             feature_subset = fselector.support_
             if filtered_feat_inds is not None:
                 feature_subset = filtered_feat_inds[fselector.support_]
-            N_results[N_key] = {'selected_feature_inds':feature_subset,
+            N_results[N_key] = {'N': N_i,
+                            'selected_feature_inds':feature_subset,
                             'pred_cv_mean':cv_mean,
                             'pred_cv_std':cv_std,
                             'pred_cv_params':params}
@@ -565,7 +566,8 @@ class CustomRFECV:
             print(f'{N_i}: CV Mean: {cv_mean:0.2f}, CV STD: {cv_std:0.2f}')
             if filtered_feat_inds is not None:
                 feature_subset = filtered_feat_inds[feature_subset]
-            N_results[N_key] = {'selected_feature_inds':feature_subset,
+            N_results[N_key] = {'N': N_i,
+                            'selected_feature_inds':feature_subset,
                             'pred_cv_mean':cv_mean,
                             'pred_cv_std':cv_std,
                             'pred_cv_params':params}
