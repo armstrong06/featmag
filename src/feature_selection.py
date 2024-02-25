@@ -750,6 +750,11 @@ class CustomRFECV:
         mega_df = mega_df.loc[feature_names][mega_df.columns.sort_values()]
         mega_df_filtered = mega_df.loc[~(mega_df==0).all(axis=1)]
         return mega_df_filtered
+
+    @staticmethod
+    def get_feature_cnts_across_stats(cnts_df):
+        return cnts_df.T.sum().reset_index().rename(columns={0:'cnt'}).sort_values('cnt', ascending=False)
+
 # @staticmethod
     # def nested_rfecv(X,
     #                  y,
