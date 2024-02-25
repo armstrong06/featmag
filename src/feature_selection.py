@@ -403,7 +403,8 @@ class CustomRFECV:
             print(f"Fold {i}: N={best_N}, test_score={best_score:0.3f}")
             rfecv_selected_feats.append(best_feats)
 
-        print(f"total time: {time.time()-start_time:0.2f} s")
+        total_time = time.time()-start_time
+        print(f"total time: {total_time:0.2f} s")
         # Set the final n as the one with the best mean performance over all folds
         average_N_scores = rfecv_N_scores.mean(axis=0)
         if larger_score_is_better:
@@ -423,7 +424,8 @@ class CustomRFECV:
                    'oste_N_score': oste_score,
                    "N_scores": rfecv_N_scores,
                    "selected_feats":rfecv_selected_feats,
-                   "intrinsic_K_feature_selection":if_K_selected_feats}
+                   "intrinsic_K_feature_selection":if_K_selected_feats,
+                   'total_time':total_time}
 
         return results
 
