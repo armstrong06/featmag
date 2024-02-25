@@ -240,16 +240,25 @@ def plot_rfecv_score_summary(rfecv_results_dict, rfe_results_dict,
 def plot_rfecv_feature_heatmap(mega_df, 
                                ax=None,
                                plot_colorbar=True,
-                               title=None):
+                               title=None,
+                               fontsize=8,
+                               figsize=None):
     feature_names = mega_df.index.values
     if ax is None:
-        fig, ax = plt.subplots()
+        fig, ax = plt.subplots(figsize=figsize)
     mappable = ax.imshow(mega_df.to_numpy(), cmap=cm.Blues)
-    ax.set_yticks(np.arange(mega_df.shape[0]), feature_names);
-    ax.set_xticks(np.arange(mega_df.shape[1]), mega_df.columns, rotation=90);
+    ax.set_yticks(np.arange(mega_df.shape[0]), 
+                  feature_names,
+                  fontsize=fontsize);
+    ax.set_xticks(np.arange(mega_df.shape[1]), 
+                  mega_df.columns, 
+                  rotation=90,
+                  fontsize=fontsize);
     if plot_colorbar:
-        plt.colorbar(mappable, shrink=0.6, label='CV Count')
-    ax.set_title(title)
+        plt.colorbar(mappable,
+                      shrink=0.6).set_label(label='CV Count',
+                                            fontsize=fontsize+1) 
+    ax.set_title(title, fontsize=fontsize+1)
     return mappable
 
 def compare_score_different_feats_scatter(df1,
