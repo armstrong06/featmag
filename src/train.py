@@ -200,10 +200,14 @@ class TrainStationModel():
 
 class OptModelSelectionMethods:
     @staticmethod
-    def select_cv_ind_min_C(gs_results, tol):
+    def select_cv_ind_min_C(gs_results, tol=None):
         min_C = np.inf
         min_ind = -1
-        for ind in np.where((gs_results.best_score_ - gs_results.cv_results_['mean_test_score']) < tol)[0]:
+        mean_test_scores = gs_results.cv_results_['mean_test_score']
+        if tol is None:
+            tol = np.std(mean_test_scores)/np.sqrt(len(mean_test_scores))
+            print(f'1 St. Err. Tol= {tol: 0.5f}')
+        for ind in np.where((gs_results.best_score_ - mean_test_scores) < tol)[0]:
             p = gs_results.cv_results_['params'][ind]
             if p['m__C'] < min_C:
                 min_ind = ind
