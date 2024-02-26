@@ -203,6 +203,7 @@ class OptModelSelectionMethods:
     def select_cv_ind_min_C(gs_results, tol=None):
         min_C = np.inf
         min_ind = -1
+        sel_score = -1
         mean_test_scores = gs_results.cv_results_['mean_test_score']
         if tol is None:
             tol = np.std(mean_test_scores)/np.sqrt(len(mean_test_scores))
@@ -212,5 +213,10 @@ class OptModelSelectionMethods:
             if p['m__C'] < min_C:
                 min_ind = ind
                 min_C = p['m__C']
+                sel_score = mean_test_scores[ind]
+            elif (p['m__C'] == min_C) and (mean_test_scores[ind] > sel_score):
+                min_ind = ind
+                min_C = p['m__C']
+                sel_score = mean_test_scores[ind]
 
         return min_ind
