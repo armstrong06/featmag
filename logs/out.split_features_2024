@@ -1,0 +1,42 @@
+nohup: ignoring input
+There are 7996 events and 92295 arrivals in the P feature catalog between 2012-10-07 00:32:04.740000+00:00 and 2023-12-29 09:38:37.689999+00:00
+There are 7017 events and 18179 arrivals in the S feature catalog between 2012-10-07 00:32:04.740000+00:00 and 2023-12-29 09:38:37.689999+00:00
+P event count: 7995
+S event count: 7016
+Limiting events to those with a YP21 mag...
+The original number of P features: 92295 (7996 events) 
+The number of P features with a YP21 mag: 92288 (7995 events)
+The original number of S features: 18179 (7017 events) 
+The number of S features with a YP21 mag: 18177 (7016 events)
+P Train size: 79.99 %
+S Train size: 79.75 %
+P train min: 300, test min: 75, total example min: 375
+S train min: 150, test min: 38, total example min: 188
+P stations meeting the min. criteria: 37
+S stations meeting the min. criteria: 18
+P stations close to min. criteria: 0
+S stations close to min. criteria: 0
+Removing stations outside of region of interest
+Started with 37 stations
+Now have 35 stations
+Started with 18 stations
+Now have 18 stations
+Original P size: 68697 (60 stations) 
+Filtered P size: 65031 (35 stations)
+Original P size: 17403 (58 stations) 
+Filtered P size: 16531 (35 stations)
+Original S size: 13390 (33 stations) 
+Filtered S size: 12738 (18 stations)
+Original S size: 3507 (33 stations) 
+Filtered S size: 3327 (18 stations)
+There are 5989 events and 65031 arrivals in the P TRAIN feature catalog between 2012-10-07 00:32:04.740000+00:00 and 2022-12-30 16:36:52.549999+00:00
+There are 5170 events and 12738 arrivals in the S TRAIN feature catalog between 2012-10-07 00:32:04.740000+00:00 and 2022-12-30 16:36:52.549999+00:00
+There are 1498 events and 16531 arrivals in the P TEST feature catalog between 2012-10-15 02:47:20.740000+00:00 and 2022-12-18 23:36:33.719997+00:00
+There are 1312 events and 3327 arrivals in the S TEST feature catalog between 2012-10-15 02:47:20.740000+00:00 and 2022-12-12 21:05:43.419998+00:00
+Making temporal split...
+Original P size: 6188 (48 stations) 
+Filtered P size: 5861 (29 stations)
+Original S size: 1280 (27 stations) 
+Filtered S size: 1185 (15 stations)
+There are 508 events and 5861 arrivals in the P TEMPORAL feature catalog between 2023-01-02 11:18:40.930000+00:00 and 2023-12-29 09:38:37.689999+00:00
+There are 436 events and 1185 arrivals in the S TEMPORAL feature catalog between 2023-01-02 11:18:40.930000+00:00 and 2023-12-29 09:38:37.689999+00:00

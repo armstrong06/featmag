@@ -1,0 +1,33 @@
+There are 6415 events and 72952 arrivals in the P feature catalog between 2012-10-07 00:32:04.740000+00:00 and 2021-12-31 20:05:50.239998+00:00
+There are 5620 events and 14152 arrivals in the S feature catalog between 2012-10-07 00:32:04.740000+00:00 and 2021-12-31 20:05:50.239998+00:00
+P event count: 6414
+S event count: 5619
+The original number of P features: 72952 (6415 events) 
+The number of P features with a YP21 mag: 72945 (6414 events)
+The original number of S features: 14152 (5620 events) 
+The number of S features with a YP21 mag: 14150 (5619 events)
+P Train size: 80.00 %
+S Train size: 79.94 %
+P train min: 300, test min: 75, total example min: 375
+S train min: 150, test min: 38, total example min: 188
+P stations meeting the min. criteria: 34
+S stations meeting the min. criteria: 17
+P stations close to min. criteria: 0
+S stations close to min. criteria: 0
+Original P size: 58265 (56 stations) 
+Filtered P size: 55622 (34 stations)
+Original P size: 14680 (60 stations) 
+Filtered P size: 13958 (34 stations)
+Original S size: 11299 (34 stations) 
+Filtered S size: 10518 (17 stations)
+Original S size: 2851 (31 stations) 
+Filtered S size: 2638 (17 stations)
+Cleaning up the 2022 held out dataset
+The original number of P features: 2540 (197 events) 
+The number of P features with a YP21 mag: 2540 (197 events)
+The original number of S features: 467 (179 events) 
+The number of S features with a YP21 mag: 467 (179 events)
+Original P size: 2540 (44 stations) 
+Filtered P size: 2308 (26 stations)
+Original S size: 467 (17 stations) 
+Filtered S size: 462 (13 stations)
