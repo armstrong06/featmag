@@ -17,7 +17,12 @@ def combine_prediction_files(stations_list,
                              split):
     pred_df_arr = []
     for stat in stations_list:
-        df = pd.read_csv(os.path.join(datapath, f'{stat}.{phase}.preds.{split}.csv'))
+        file = os.path.join(datapath, f'{stat}.{phase}.preds.{split}.csv')
+        try:
+            df = pd.read_csv(file)
+        except:
+            print(f'{file} does not exist, skipping...')
+            continue
         df['station'] = stat
         pred_df_arr.append(df)
 
