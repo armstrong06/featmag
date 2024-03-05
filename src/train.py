@@ -214,9 +214,9 @@ class OptModelSelectionMethods:
                 min_ind = ind
                 min_C = p['m__C']
                 sel_score = mean_test_scores[ind]
-            elif (p['m__C'] == min_C) and (mean_test_scores[ind] > sel_score):
-                min_ind = ind
-                min_C = p['m__C']
-                sel_score = mean_test_scores[ind]
+            # elif (p['m__C'] == min_C) and (mean_test_scores[ind] > sel_score):
+            #     min_ind = ind
+            #     min_C = p['m__C']
+            #     sel_score = mean_test_scores[ind]
 
         return min_ind
