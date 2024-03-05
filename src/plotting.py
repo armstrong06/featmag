@@ -464,7 +464,7 @@ def actual_v_predicted(results_df,
     # When the number of stations does not evenly fit into the n_cols*n_rows,
     # remove extra axes from the upper left corner 
     # Get the ax inds to turn off and add 'null' into the station list
-    stat_list = results_df['station'].tolist()
+    stat_list = results_df['station'].sort_values().tolist()
     ignore_inds = []
     for i in range(int(n_rows*n_cols - n_stats), 0, -1): 
         ignore_inds.append(n_cols-i)
