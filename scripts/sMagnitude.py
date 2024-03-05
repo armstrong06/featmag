@@ -267,9 +267,9 @@ if __name__ == "__main__":
     #print(dir(rtseis.PostProcessing.Waveform))
     archive_dir = '/uufs/chpc.utah.edu/common/home/koper-group4/bbaker/waveformArchive/archives/'
     h5_archive_files = glob.glob(archive_dir + '/archive_????.h5')
-    catalog_dir = '/uufs/chpc.utah.edu/common/home/koper-group3/alysha/ben_catalogs/20220728'
+    catalog_dir = '/uufs/chpc.utah.edu/common/home/koper-group3/alysha/ben_catalogs/20240220'
     arrival_catalog_3c = f'{catalog_dir}/currentEarthquakeArrivalInformation3CWithGains.csv'
-    startdate = datetime(2022, 1, 1, tzinfo=timezone.utc).timestamp()
+    startdate = datetime(2012, 1, 1, tzinfo=timezone.utc).timestamp()
     print(f'Using events occuring on or after {startdate}')
 
     print("Loading arrival catalog...")
@@ -278,10 +278,10 @@ if __name__ == "__main__":
     arrival_catalog_df = arrival_catalog_df[ (arrival_catalog_df.phase == 'S') &
                                              (arrival_catalog_df.magnitude_type == 'l') &
                                              (arrival_catalog_df.origin_time >= startdate) ]
-    # Focus on Yellowstone
+    # # Focus on Yellowstone
     arrival_catalog_df = arrival_catalog_df[ (arrival_catalog_df.event_lat > 44) &
                                              (arrival_catalog_df.event_lat < 45.167) &
-                                             (arrival_catalog_df.event_lon > -111.133) &
+                                             (arrival_catalog_df.event_lon > -111.333) &
                                              (arrival_catalog_df.event_lon < -109.75) ]
 
     print("Opening archive files for reading...")
@@ -291,4 +291,4 @@ if __name__ == "__main__":
     create_features(archive_manager,
                     arrival_catalog_df,
                     magnitude_type = 'l',
-                    output_file = '../data/features/s_features.2022.csv')
+                    output_file = '../data/features/s_features.2024.csv')
