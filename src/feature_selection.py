@@ -734,7 +734,8 @@ class CustomRFECV:
                           feature_names,
                           feature_counting_func,
                           oste_feats=False,
-                          larger_score_is_better=True):
+                          larger_score_is_better=True,
+                          filter_zeros=True):
         feature_counts_dict = feature_counting_func(results_dict,
                                                         feature_names,
                                                         oste_feats=oste_feats,
@@ -747,9 +748,12 @@ class CustomRFECV:
                 mega_df = key_dict
             else:
                 mega_df = mega_df.merge(key_dict, on='Feature')
+        
         mega_df = mega_df.loc[feature_names][mega_df.columns.sort_values()]
-        mega_df_filtered = mega_df.loc[~(mega_df==0).all(axis=1)]
-        return mega_df_filtered
+        if filter_zeros:
+            mega_df_filtered = mega_df.loc[~(mega_df==0).all(axis=1)]
+            return mega_df_filtered
+        return mega_df
 
     @staticmethod
     def get_feature_cnts_across_stats(cnts_df):
