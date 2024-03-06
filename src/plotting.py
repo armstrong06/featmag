@@ -286,7 +286,9 @@ def plot_feature_heatmaps_sidebyside(p_df, s_df,
                             title=None,
                             figsize=(7.5, 5.5),
                             fontsize=8,
-                            savefigname=None):
+                            savefigname=None,
+                            p_title=f'$\it P$ Models',
+                            s_title=f'$\it S$ Models'):
     asp = (p_df.shape[1] - 1)/(s_df.shape[1] -1 )
     fig, axes = plt.subplots(1, 2, 
                         figsize=figsize, 
@@ -296,14 +298,14 @@ def plot_feature_heatmaps_sidebyside(p_df, s_df,
     im1 = plot_rfecv_feature_heatmap(p_df,
                                         ax=axes[0],
                                         plot_colorbar=False,
-                                        title=f'$\it P$ Models',
+                                        title=p_title,
                                         feature_col='Feature',
                                         fontsize=fontsize)
 
     im2 = plot_rfecv_feature_heatmap(s_df,
                                         ax=axes[1],
                                         plot_colorbar=False,
-                                        title=f'$\it S$ Models',
+                                        title=s_title,
                                         feature_col='Feature',
                                         fontsize=fontsize)
     if colorbar:                                    
