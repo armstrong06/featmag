@@ -9,6 +9,16 @@ from matplotlib.colors import Normalize, TwoSlopeNorm
 from sklearn.metrics import r2_score, mean_squared_error
 import string
 
+def set_default_fontsizes(SMALL_SIZE=8, MEDIUM_SIZE=9):
+    plt.rc('font', size=SMALL_SIZE)          # controls default text sizes
+    plt.rc('axes', titlesize=MEDIUM_SIZE)     # fontsize of the axes title
+    plt.rc('axes', labelsize=MEDIUM_SIZE)    # fontsize of the x and y labels
+    plt.rc('xtick', labelsize=SMALL_SIZE)    # fontsize of the tick labels
+    plt.rc('ytick', labelsize=SMALL_SIZE)    # fontsize of the tick labels
+    plt.rc('legend', fontsize=SMALL_SIZE)    # legend fontsize
+    plt.rc('figure', titlesize=MEDIUM_SIZE)  # fontsize of the figure title
+    plt.rc('figure', labelsize=MEDIUM_SIZE)
+
 def plot_station_feature_box_whisker(df, feature, ylabel=None, sort_counts=True, thresholds=None, showfliers=True, min_y_line=None):
     fig = plt.figure(figsize=(15, 5))
     station_feat = df.groupby("station").apply(
@@ -375,23 +385,27 @@ def scores_heatmap(df,
                    tablefontcolor='k',
                    tablefontsize=None,
                    tight_layout=True,
-                   tablevalueprec=2):
+                   tablevalueprec=2,
+                   rotate_xticklabels=False,
+                   fontcolorthresh=1.0,
+                   alttablefontcolor='white'):
     """Follow this example
     https://matplotlib.org/stable/gallery/images_contours_and_fields/image_annotated_heatmap.html#a-simple-categorical-heatmap
     """
     norm = None
+    if cmap_min is None:
+        cmap_min = df[cols].min(axis=None)
+        print(f'cmap min set to {cmap_min}')
+    if cmap_max is None:
+        cmap_max = df[cols].max(axis=None)
+        print(f'cmap max set to {cmap_max}')
     if midpoint_normalize:
         if midpoint is None:
             midpoint = np.nanpercentile(df[cols].values, [50])[0]
             print(f'cmap midpoint set to {midpoint}')
-        if cmap_min is None:
-            cmap_min = df[cols].min(axis=None)
-            print(f'cmap min set to {cmap_min}')
-        if cmap_max is None:
-            cmap_max = df[cols].max(axis=None)
-            print(f'cmap max set to {cmap_max}')
-
         norm = TwoSlopeNorm(vmin=cmap_min, vcenter=midpoint, vmax=cmap_max)
+    else:
+        norm = Normalize(vmin=cmap_min, vmax=cmap_max)
          
     if ax is None:
         fig, ax = plt.subplots(figsize=(4, 6))
@@ -399,8 +413,7 @@ def scores_heatmap(df,
     im = ax.imshow(df[cols], 
                 aspect='auto',
                 norm=norm,
-                cmap=cmap,
-                #clim=(cmap_min, cmap_max)                     
+                cmap=cmap,      
                 )
     ylabels=[]
     yticks = []
@@ -409,12 +422,18 @@ def scores_heatmap(df,
         yticks = np.arange(len(df['station']))
     ax.set_yticks(yticks, labels=ylabels);
     ax.set_xticks(np.arange(len(cols)), xticklabels);
-    plt.setp(ax.get_xticklabels(), rotation=45, ha="right",
-            rotation_mode="anchor");
+    if rotate_xticklabels:
+        plt.setp(ax.get_xticklabels(), rotation=45, ha="right",
+                rotation_mode="anchor");
     # Loop over data dimensions and create text annotations.
     for i in range(len(df['station'])):
         for j in range(3):
             t = df[cols].values[i, j]
+
+            color = tablefontcolor
+            if (t > fontcolorthresh*cmap_max and t <= cmap_max) or (t < fontcolorthresh*cmap_min and t >= cmap_min):
+                color = alttablefontcolor
+
             if np.isnan(t):
                 t=""
             else:
@@ -422,10 +441,13 @@ def scores_heatmap(df,
             ax.text(j, i, t,
                     ha="center", 
                     va="center", 
-                    color=tablefontcolor,
+                    color=color,
                     fontsize=tablefontsize)
     if show_cbar:   
-        plt.colorbar(im, ticks=cbar_ticks, label=cbar_label)
+        plt.colorbar(im,
+                      ticks=cbar_ticks, 
+                      label=cbar_label,
+                      aspect=40)
     
     ax.set_title(title)
 
@@ -449,7 +471,8 @@ def actual_v_predicted(results_df,
                          legend_bbox_width=3,
                          figsize=(11,11),
                          linestyle='-',
-                         linecolor='k'):
+                         linecolor='k',
+                         savepath=None):
 
     inner_tick_locations = []
     if inner_ticks_on:
@@ -582,13 +605,14 @@ def actual_v_predicted(results_df,
         i+=1
         
     fig.supxlabel(r"Actual $M_L$", fontsize=16)
-    fig.supylabel(r"Predicted $M_L$", fontsize=16, x=-0.02)
+    fig.supylabel(r"Predicted $M_L$", fontsize=16, x=-0.03)
     fig.suptitle(title, fontsize=16, y=1.04)
 
     if not legend:
         ax.legend(loc=(1.2, 0), fontsize=12, handletextpad=0.5, borderpad=0.05, 
                 borderaxespad=0.05, handlelength=0.5)
-    
+    if savepath is not None:
+        fig.savefig(savepath, dpi=300, bbox_inches='tight')
 
 def actual_v_network_avg_prediction(df_list,
                                     title = None,
