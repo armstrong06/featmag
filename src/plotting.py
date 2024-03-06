@@ -9,14 +9,14 @@ from matplotlib.colors import Normalize, TwoSlopeNorm
 from sklearn.metrics import r2_score, mean_squared_error
 import string
 
-def set_default_fontsizes(SMALL_SIZE=8, MEDIUM_SIZE=9):
+def set_default_fontsizes(SMALL_SIZE=8, MEDIUM_SIZE=9, LARGE_SIZE=9):
     plt.rc('font', size=SMALL_SIZE)          # controls default text sizes
     plt.rc('axes', titlesize=MEDIUM_SIZE)     # fontsize of the axes title
     plt.rc('axes', labelsize=MEDIUM_SIZE)    # fontsize of the x and y labels
     plt.rc('xtick', labelsize=SMALL_SIZE)    # fontsize of the tick labels
     plt.rc('ytick', labelsize=SMALL_SIZE)    # fontsize of the tick labels
     plt.rc('legend', fontsize=SMALL_SIZE)    # legend fontsize
-    plt.rc('figure', titlesize=MEDIUM_SIZE)  # fontsize of the figure title
+    plt.rc('figure', titlesize=LARGE_SIZE)  # fontsize of the figure title
     plt.rc('figure', labelsize=MEDIUM_SIZE)
 
 def plot_station_feature_box_whisker(df, feature, ylabel=None, sort_counts=True, thresholds=None, showfliers=True, min_y_line=None):
@@ -252,8 +252,13 @@ def plot_rfecv_feature_heatmap(mega_df,
                                plot_colorbar=True,
                                title=None,
                                fontsize=8,
-                               figsize=None):
-    feature_names = mega_df.index.values
+                               figsize=None,
+                               feature_col=None):
+    if feature_col is None:
+        feature_names = mega_df.index.values
+    else:
+        feature_names = mega_df[feature_col]
+        mega_df = mega_df.drop(feature_col, axis=1)
     if ax is None:
         fig, ax = plt.subplots(figsize=figsize)
     mappable = ax.imshow(mega_df.to_numpy(), cmap=cm.Blues)
@@ -264,12 +269,49 @@ def plot_rfecv_feature_heatmap(mega_df,
                   mega_df.columns, 
                   rotation=90,
                   fontsize=fontsize);
+    
+    med_fontsize = None
+    if fontsize is not None:
+        med_fontsize = fontsize + 1
     if plot_colorbar:
         plt.colorbar(mappable,
                       shrink=0.6).set_label(label='CV Count',
-                                            fontsize=fontsize+1) 
-    ax.set_title(title, fontsize=fontsize+1)
+                                            fontsize=med_fontsize) 
+    ax.set_title(title) #, fontsize=med_fontsize)
     return mappable
+
+def plot_feature_heatmaps_sidebyside(p_df, s_df, 
+                            colorbar=True, 
+                            colorbarlabel='CV count',
+                            title=None,
+                            figsize=(7.5, 5.5),
+                            fontsize=8,
+                            savefigname=None):
+    asp = (p_df.shape[1] - 1)/(s_df.shape[1] -1 )
+    fig, axes = plt.subplots(1, 2, 
+                        figsize=figsize, 
+                        constrained_layout=True,
+                            width_ratios=[asp, 1],
+                            sharey=True)
+    im1 = plot_rfecv_feature_heatmap(p_df,
+                                        ax=axes[0],
+                                        plot_colorbar=False,
+                                        title=f'$\it P$ Models',
+                                        feature_col='Feature',
+                                        fontsize=fontsize)
+
+    im2 = plot_rfecv_feature_heatmap(s_df,
+                                        ax=axes[1],
+                                        plot_colorbar=False,
+                                        title=f'$\it S$ Models',
+                                        feature_col='Feature',
+                                        fontsize=fontsize)
+    if colorbar:                                    
+        plt.colorbar(im2, aspect=30, shrink=0.5, label=colorbarlabel, fraction=0.1)
+
+    fig.suptitle(title)
+    if savefigname is not None:
+        fig.savefig(savefigname, dpi=300)
 
 def compare_score_different_feats_scatter(df1,
                                    df2,
