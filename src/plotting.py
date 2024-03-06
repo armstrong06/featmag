@@ -151,7 +151,8 @@ def plot_rfecv_score_summary(rfecv_results_dict, rfe_results_dict,
                                s=20,
                                elinewidth=None,
                                plot_N=False,
-                               N_ylims=None):
+                               N_ylims=None,
+                               savefigname=None):
     if not plot_N:
         fig, axes = plt.subplots(2, 1, figsize=(5, 5))
         ax_rfecv, ax_rfe = axes
@@ -167,8 +168,8 @@ def plot_rfecv_score_summary(rfecv_results_dict, rfe_results_dict,
         oste_N = row['oste_N']
         label1, label2, = None, None
         if i == 1:
-            label1 = 'best $\it{N}$'
-            label2 = '1 st. err. $\it{N}$'
+            label1 = '$\it{n_{max}}$' #'best $\it{N}$'
+            label2 = '$\it{n_{min}}$' #'1 st. err. $\it{N}$'
 
         if plot_N:
             ax_N.scatter(i, best_N, color='C0', marker=best_sym, s=s, zorder=5)
@@ -224,28 +225,36 @@ def plot_rfecv_score_summary(rfecv_results_dict, rfe_results_dict,
                            label=label2)
 
     if plot_N:
-        ax_N.set_ylabel("$\it{N}$ Features", fontsize=9)
+        ax_N.set_ylabel("$\it{n}$ Features") #, fontsize=9)
         ax_N.set_xticks(np.arange(len(xlabels)), labels=[])
         ax_N.set_ylim(N_ylims)
         if grids:
             ax_N.grid(axis='y')
-    ax_rfe.legend(fontsize=8)
+    ax_rfe.legend() #fontsize=8)
     ax_rfecv.set_xticks(np.arange(len(xlabels)), labels=[])
     ax_rfe.set_xticks(np.arange(len(xlabels)), 
                       labels=xlabels, 
-                      rotation=90,
-                      fontsize=8);
-    ax_rfecv.set_ylabel(r'RFECV $R^2$', fontsize=9)
-    ax_rfe.set_ylabel(r'Selected Feats. CV $R^2$', fontsize=9)
+                      rotation=90,);
+                      #fontsize=8);
+    ax_rfecv.set_ylabel(r'RFE-CV $R^2$') #, fontsize=9)
+    ax_rfe.set_ylabel(r'RFE-full $R^2$')#, fontsize=9)
     ax_rfecv.set_ylim(score_ylims)
     ax_rfe.set_ylim(score_ylims)
     if grids:
         ax_rfecv.grid(axis='y')
         ax_rfe.grid(axis='y')
 
-    for ax in axes:
-        for item in ax.get_yticklabels():
-            item.set_fontsize(8)
+    sp_labels = ['(a)', '(b)', '(c)']
+    for i, ax in enumerate(axes):
+        ax.text(0.01, 
+                1.03, 
+                sp_labels[i], 
+                transform=ax.transAxes)
+    #     for item in ax.get_yticklabels():
+    #         item.set_fontsize(8)
+        
+    if savefigname is not None:
+        fig.savefig(savefigname, dpi=300)
 
 def plot_rfecv_feature_heatmap(mega_df, 
                                ax=None,
