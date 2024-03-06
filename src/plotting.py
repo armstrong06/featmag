@@ -311,6 +311,13 @@ def plot_feature_heatmaps_sidebyside(p_df, s_df,
     if colorbar:                                    
         plt.colorbar(im2, aspect=30, shrink=0.5, label=colorbarlabel, fraction=0.1)
 
+    sp_labels = ['(a)', '(b)']
+    for i, ax in enumerate(axes):
+        ax.text(0.01, 
+                1.01, 
+                sp_labels[i], 
+                transform=ax.transAxes)
+
     fig.suptitle(title)
     if savefigname is not None:
         fig.savefig(savefigname, dpi=300)
