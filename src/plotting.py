@@ -3,6 +3,8 @@ import seaborn as sns
 import numpy as np
 import pandas as pd
 import os
+from matplotlib.ticker import MultipleLocator
+from matplotlib.lines import Line2D
 from matplotlib import patches
 from matplotlib import cm
 from matplotlib.colors import Normalize, TwoSlopeNorm
@@ -797,3 +799,111 @@ def plot_sequential_selected_feature_scores(ids_scores,
     plt.ylabel("CV $R^2$")
     plt.legend(loc='lower right')
     plt.title("CV $R^2$ Ranges for Selected Features")
+
+def r2_boxplots(boxplots_dict, scatter_dict, 
+                label_dict, 
+                xtick_locs=[0, 1, 2],
+                xlims=[-0.25, 2.75],
+                savefigname=None):
+    h_offset = 0.25
+    r2_marker = '*'
+    r2_markersize = 75
+    r2_marker_linewidth = 0.9
+    bp_colors = ['#f0f0f0', '#636363', '#bdbdbd']
+    cap_width = 0.12
+    xtick_locs = np.array(xtick_locs)
+    splits = ['Train', 'Test A', 'Test B']
+    ylim = [0.6, 1.0]
+    fig, axes = plt.subplots(2, 1, constrained_layout=True)
+
+    phase_axes = {'P':0, 'S':1}
+    xticklabels = [[], splits]
+    legend_boxes = []
+    labels = []
+    for i, ds_key in enumerate(boxplots_dict.keys()):
+        phase_dict = boxplots_dict[ds_key]
+        offset = h_offset*i
+        color=bp_colors[i]
+        labels.append(label_dict[ds_key])
+        for j, phase in enumerate(phase_dict.keys()):
+            df = phase_dict[phase]
+            ax_ind = phase_axes[phase]
+            ax = axes[ax_ind]
+
+            bp1 = ax.boxplot(df[['train_r2', 'test_r2']],
+                vert=True,
+                positions=xtick_locs[:-1]+offset,
+                showfliers=False,
+                patch_artist=True,
+                capwidths=cap_width);
+            
+            # Holdout separate b/c may be nan values
+            bp2 = ax.boxplot(df['holdout_r2'].dropna(),
+                vert=True,
+                positions=xtick_locs[-1:]+offset,
+                showfliers=False,
+                patch_artist=True,
+                capwidths=cap_width);
+            
+            try:
+                test_na = scatter_dict[ds_key][phase]['test_r2']
+                ax.scatter(xtick_locs[1:2]+offset, test_na,
+                            marker=r2_marker,
+                            color=color,
+                            zorder=10,
+                            s=r2_markersize,
+                            edgecolor='k',
+                            linewidth=r2_marker_linewidth)
+            except:
+                pass
+
+            try:
+                holdout_na = scatter_dict[ds_key][phase]['holdout_r2']
+                ax.scatter(xtick_locs[-1:]+offset, holdout_na,
+                        marker=r2_marker,
+                        color=color,
+                        zorder=10,
+                        s=r2_markersize,
+                        edgecolor='k',
+                        linewidth=r2_marker_linewidth)
+            except:
+                pass
+
+            for bp in [bp1, bp2]:
+                for patch in bp['boxes']:
+                    patch.set_facecolor(color)
+
+            if j == 0:
+                legend_boxes.append(bp1['boxes'][0])
+
+    if i == 1:
+        h_offset /= 2
+
+    for i, ax in enumerate(axes):
+        ax.set_xticks(xtick_locs+(h_offset), xticklabels[i])
+        ax.set_ylim(ylim)
+        ax.yaxis.set_major_locator(MultipleLocator(0.1))
+        ax.yaxis.set_minor_locator(MultipleLocator(0.05))
+        ax.grid(axis='y', which='both')
+        ax.set_xlim(xlims)
+
+    axes[phase_axes['P']].set_title("$\it{P}$ Models")
+    axes[phase_axes['S']].set_title("$\it{S}$ Models")
+    fig.supylabel("Station $R^2$")
+
+    subpanel_labels = ["(a)", "(b)"]
+    for i, ax in enumerate(axes):
+        ax.text(0, 1.02, subpanel_labels[i], 
+        transform=ax.transAxes,)
+
+    # Set up legend
+    star = Line2D([0], [0], marker=r2_marker, 
+                color='black', 
+                markersize=r2_markersize//10, 
+                linestyle='')
+    legend_boxes.append(star)
+    labels.append(label_dict['scatter'])
+    ax.legend(legend_boxes, labels, loc='lower left')
+
+    if savefigname is not None:
+        fig.savefig(savefigname, dpi=300)
