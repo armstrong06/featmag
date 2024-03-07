@@ -789,16 +789,24 @@ def plot_sequential_all_feature_scores(all_scores, initial_score=0.0):
 
 def plot_sequential_selected_feature_scores(ids_scores, 
                                             feature_names, 
-                                            base_set_name="None"):
+                                            base_set_name="None",
+                                            title="CV $R^2$ Ranges for Selected Features",
+                                            savefigname=None):
     feat_plot_names = np.concatenate([[base_set_name], feature_names])
     x = np.arange(ids_scores.shape[0])
-    plt.fill_between(x, ids_scores[:, 1], ids_scores[:, 2], color='gray', alpha=0.5, label='CV min, max')
-    plt.plot(x, ids_scores[:, 0], color='k', marker='x', label='CV mean')
-    plt.xticks(x, feat_plot_names, rotation=90)
-    plt.xlabel("Selected features")
-    plt.ylabel("CV $R^2$")
-    plt.legend(loc='lower right')
-    plt.title("CV $R^2$ Ranges for Selected Features")
+    fig, ax = plt.subplots(1, constrained_layout=True, figsize=(4, 3))
+    ax.fill_between(x, ids_scores[:, 1], ids_scores[:, 2], color='gray', 
+                     alpha=0.5, label='CV range')
+    ax.plot(x, ids_scores[:, 0], color='k', marker='x', label='CV mean')
+    ax.set_xticks(x, feat_plot_names, rotation=90)
+    ax.set_xlabel("Added Feature")
+    ax.set_ylabel("CV $R^2$")
+    ax.legend(loc='lower right')
+    ax.set_title(title)
+    ax.grid(axis='y')
+    if savefigname is not None:
+        fig.savefig(savefigname, dpi=300)
+    print(fig.get_size_inches())
 
 def r2_boxplots(boxplots_dict, scatter_dict, 
                 label_dict, 
