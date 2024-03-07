@@ -804,6 +804,7 @@ def r2_boxplots(boxplots_dict, scatter_dict,
                 label_dict, 
                 xtick_locs=[0, 1, 2],
                 xlims=[-0.25, 2.75],
+                ylim=[0.6, 1.0],
                 savefigname=None):
     h_offset = 0.25
     r2_marker = '*'
@@ -813,7 +814,6 @@ def r2_boxplots(boxplots_dict, scatter_dict,
     cap_width = 0.12
     xtick_locs = np.array(xtick_locs)
     splits = ['Train', 'Test A', 'Test B']
-    ylim = [0.6, 1.0]
     fig, axes = plt.subplots(2, 1, constrained_layout=True)
 
     phase_axes = {'P':0, 'S':1}
