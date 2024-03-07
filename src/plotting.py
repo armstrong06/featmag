@@ -45,8 +45,12 @@ def plot_station_feature_box_whisker(df, feature, ylabel=None, sort_counts=True,
 
 
 def plot_pairwise_correlations(X, y, column_names, title,
-                               xticklabels=2, ax=None):
-    """Followed [this](https://seaborn.pydata.org/examples/many_pairwise_correlations.html) example"""
+                               xticklabels=2, ax=None,
+                               center_colorbar=True,
+                               figsize=(9,7),
+                               savefigname=None):
+    """Followed [this](https://seaborn.pydata.org/examples/many_pairwise_correlations.html) example and
+    this one https://matplotlib.org/stable/gallery/axes_grid1/demo_colorbar_with_inset_locator.html"""
     df = pd.DataFrame(X, columns=column_names)
     df['magnitude'] = y
 
@@ -59,16 +63,32 @@ def plot_pairwise_correlations(X, y, column_names, title,
 
     if ax is None:
         # Set up the matplotlib figure
-        f, ax = plt.subplots(figsize=(11, 9))
+        f, ax = plt.subplots(figsize=figsize)
 
     # Generate a custom diverging colormap
     cmap = sns.diverging_palette(230, 20, as_cmap=True)
 
-    # Draw the heatmap with the mask and correct aspect ratio
-    sns.heatmap(corr, mask=mask, cmap=cmap, vmax=1, vmin=-1, center=0,
-                square=True, linewidths=.5, cbar_kws={"shrink": .5},
-                yticklabels=1, xticklabels=xticklabels).set_title(title)
-
+    
+    if center_colorbar:
+        cax = sns.heatmap(corr, mask=mask, cmap=cmap, vmax=1, vmin=-1, center=0,
+        square=True, linewidths=.5, cbar=False, yticklabels=1, xticklabels=xticklabels)
+        axins1 = ax.inset_axes([0.55, 0.7, 0.3, 0.02])
+        axins1.xaxis.set_ticks_position("bottom")
+        f.colorbar(cax.get_children()[0], cax=axins1, 
+                    orientation="horizontal", 
+                    ticks=[-1, 0, 1]).set_label(label='Correlation Coefficient', 
+                                                fontsize=8)
+        axins1.tick_params(labelsize=8)
+    else:
+        # Draw the heatmap with the mask and correct aspect ratio
+        cax = sns.heatmap(corr, mask=mask, cmap=cmap, vmax=1, vmin=-1, center=0,
+                    square=True, linewidths=.5, cbar_kws={"shrink": .5},
+                    yticklabels=1, xticklabels=xticklabels)
+        
+    cax.tick_params(labelsize=8)
+    ax.set_title(title, fontsize=9, y=0.96)
+    if savefigname is not None:
+        f.savefig(savefigname, dpi=300, bbox_inches='tight')
 
 def plot_r2_heatmap(gs_results,
                     C_range,
