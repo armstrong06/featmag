@@ -813,7 +813,9 @@ def r2_boxplots(boxplots_dict, scatter_dict,
                 xtick_locs=[0, 1, 2],
                 xlims=[-0.25, 2.75],
                 ylim=[0.6, 1.0],
-                savefigname=None):
+                savefigname=None,
+                plot_train=True,
+                legend_ax=1):
     h_offset = 0.25
     r2_marker = '*'
     r2_markersize = 75
@@ -823,6 +825,10 @@ def r2_boxplots(boxplots_dict, scatter_dict,
     xtick_locs = np.array(xtick_locs)
     splits = ['Train', 'Test A', 'Test B']
     fig, axes = plt.subplots(2, 1, constrained_layout=True)
+    bp1_cols = ['train_r2', 'test_r2']
+    if not plot_train:
+        bp1_cols = ['test_r2']
+        splits = splits[1:]
 
     phase_axes = {'P':0, 'S':1}
     xticklabels = [[], splits]
@@ -838,7 +844,7 @@ def r2_boxplots(boxplots_dict, scatter_dict,
             ax_ind = phase_axes[phase]
             ax = axes[ax_ind]
 
-            bp1 = ax.boxplot(df[['train_r2', 'test_r2']],
+            bp1 = ax.boxplot(df[bp1_cols],
                 vert=True,
                 positions=xtick_locs[:-1]+offset,
                 showfliers=False,
@@ -905,13 +911,17 @@ def r2_boxplots(boxplots_dict, scatter_dict,
         transform=ax.transAxes,)
 
     # Set up legend
-    star = Line2D([0], [0], marker=r2_marker, 
-                color='black', 
-                markersize=r2_markersize//10, 
-                linestyle='')
-    legend_boxes.append(star)
-    labels.append(label_dict['scatter'])
-    ax.legend(legend_boxes, labels, loc='lower left')
+    try:
+        labels.append(label_dict['scatter'])
+        star = Line2D([0], [0], marker=r2_marker, 
+                    color='black', 
+                    markersize=r2_markersize//10, 
+                    linestyle='')
+        legend_boxes.append(star)
+    except:
+        pass
+
+    axes[legend_ax].legend(legend_boxes, labels, loc='lower left')
 
     if savefigname is not None:
         fig.savefig(savefigname, dpi=300)
