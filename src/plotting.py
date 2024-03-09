@@ -174,12 +174,13 @@ def plot_rfecv_score_summary(rfecv_results_dict, rfe_results_dict,
                                elinewidth=None,
                                plot_N=False,
                                N_ylims=None,
-                               savefigname=None):
+                               savefigname=None,
+                               figsize=(5,5)):
     if not plot_N:
-        fig, axes = plt.subplots(2, 1, figsize=(5, 5))
+        fig, axes = plt.subplots(2, 1, figsize=figsize)
         ax_rfecv, ax_rfe = axes
     else:
-        fig, axes = plt.subplots(3, 1, figsize=(7, 5))
+        fig, axes = plt.subplots(3, 1, figsize=figsize)
         ax_N, ax_rfecv, ax_rfe = axes
     # ax2 = ax.twinx()
     results_df = pd.DataFrame(rfecv_results_dict).T.reset_index().rename(columns={'index':'station'}).sort_values('station')
