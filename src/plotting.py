@@ -175,7 +175,8 @@ def plot_rfecv_score_summary(rfecv_results_dict, rfe_results_dict,
                                plot_N=False,
                                N_ylims=None,
                                savefigname=None,
-                               figsize=(5,5)):
+                               figsize=(5,5),
+                               title=None):
     if not plot_N:
         fig, axes = plt.subplots(2, 1, figsize=figsize)
         ax_rfecv, ax_rfe = axes
@@ -184,6 +185,7 @@ def plot_rfecv_score_summary(rfecv_results_dict, rfe_results_dict,
         ax_N, ax_rfecv, ax_rfe = axes
     # ax2 = ax.twinx()
     results_df = pd.DataFrame(rfecv_results_dict).T.reset_index().rename(columns={'index':'station'}).sort_values('station')
+    results_df.index = np.arange(len(results_df))
     xlabels = results_df['station']
     for i, row in results_df.iterrows():
         scores = np.array(row['N_scores'])
@@ -253,7 +255,7 @@ def plot_rfecv_score_summary(rfecv_results_dict, rfe_results_dict,
         ax_N.set_ylim(N_ylims)
         if grids:
             ax_N.grid(axis='y')
-    ax_rfe.legend() #fontsize=8)
+    ax_rfe.legend(borderpad=0.2, loc='lower right') #fontsize=8)
     ax_rfecv.set_xticks(np.arange(len(xlabels)), labels=[])
     ax_rfe.set_xticks(np.arange(len(xlabels)), 
                       labels=xlabels, 
@@ -269,6 +271,7 @@ def plot_rfecv_score_summary(rfecv_results_dict, rfe_results_dict,
 
     sp_labels = ['(a)', '(b)', '(c)']
     for i, ax in enumerate(axes):
+        ax.set_xlim([-1, len(xlabels)])
         ax.text(0.01, 
                 1.03, 
                 sp_labels[i], 
@@ -276,6 +279,7 @@ def plot_rfecv_score_summary(rfecv_results_dict, rfe_results_dict,
     #     for item in ax.get_yticklabels():
     #         item.set_fontsize(8)
         
+    ax_N.set_title(title)
     if savefigname is not None:
         fig.savefig(savefigname, dpi=300)
 
