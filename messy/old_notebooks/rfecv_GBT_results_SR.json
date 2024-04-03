@@ -1,0 +1,392 @@
+{
+    "n_feats": [
+        9,
+        8,
+        12,
+        9,
+        9,
+        14,
+        10,
+        9,
+        14,
+        8
+    ],
+    "optfts_bool": [
+        [
+            false,
+            false,
+            false,
+            false,
+            true,
+            true,
+            true,
+            true,
+            true,
+            false,
+            false,
+            false,
+            false,
+            true,
+            false,
+            true,
+            true,
+            true
+        ],
+        [
+            false,
+            false,
+            false,
+            false,
+            true,
+            true,
+            true,
+            true,
+            false,
+            false,
+            false,
+            false,
+            false,
+            true,
+            false,
+            true,
+            true,
+            true
+        ],
+        [
+            false,
+            true,
+            false,
+            false,
+            true,
+            true,
+            true,
+            true,
+            true,
+            false,
+            true,
+            false,
+            true,
+            true,
+            false,
+            true,
+            true,
+            true
+        ],
+        [
+            false,
+            false,
+            false,
+            false,
+            true,
+            true,
+            false,
+            true,
+            true,
+            false,
+            true,
+            false,
+            false,
+            true,
+            false,
+            true,
+            true,
+            true
+        ],
+        [
+            false,
+            false,
+            false,
+            false,
+            true,
+            true,
+            true,
+            true,
+            false,
+            false,
+            true,
+            false,
+            false,
+            true,
+            false,
+            true,
+            true,
+            true
+        ],
+        [
+            true,
+            false,
+            false,
+            true,
+            true,
+            true,
+            true,
+            true,
+            true,
+            false,
+            true,
+            false,
+            true,
+            true,
+            true,
+            true,
+            true,
+            true
+        ],
+        [
+            false,
+            false,
+            false,
+            false,
+            true,
+            true,
+            true,
+            true,
+            true,
+            false,
+            true,
+            false,
+            false,
+            true,
+            false,
+            true,
+            true,
+            true
+        ],
+        [
+            false,
+            false,
+            false,
+            false,
+            true,
+            true,
+            true,
+            true,
+            false,
+            false,
+            true,
+            false,
+            false,
+            true,
+            false,
+            true,
+            true,
+            true
+        ],
+        [
+            true,
+            false,
+            false,
+            true,
+            true,
+            true,
+            true,
+            true,
+            true,
+            false,
+            true,
+            false,
+            true,
+            true,
+            true,
+            true,
+            true,
+            true
+        ],
+        [
+            false,
+            false,
+            false,
+            false,
+            true,
+            true,
+            true,
+            true,
+            false,
+            false,
+            false,
+            false,
+            false,
+            true,
+            false,
+            true,
+            true,
+            true
+        ]
+    ],
+    "test_score_optfts": [
+        0.9085824297210269,
+        0.9004364697355445,
+        0.9149079680142194,
+        0.8990860234388157,
+        0.9004442494571944,
+        0.9053339955837502,
+        0.9168170871696892,
+        0.8986693061373666,
+        0.9264954997810576,
+        0.8706661964823483
+    ],
+    "cv_mean_optfts": [
+        0.8996157933986091,
+        0.9020849413899669,
+        0.9061432097174068,
+        0.9004104541390339,
+        0.903582628745396,
+        0.9052773468089809,
+        0.8999821999739144,
+        0.9010889061145682,
+        0.9009709722660662,
+        0.9057405737422721
+    ],
+    "cv_std_optfts": [
+        0.010606938690965696,
+        0.008428964848302455,
+        0.005493890321202899,
+        0.005199861494832875,
+        0.007851530175033072,
+        0.003672465500062974,
+        0.006554808233065212,
+        0.008310251012457893,
+        0.0080822564186771,
+        0.006199115098154825
+    ],
+    "cv_params_optfts": [
+        {
+            "m__learning_rate": 0.01,
+            "m__max_depth": 7,
+            "m__n_estimators": 1000
+        },
+        {
+            "m__learning_rate": 0.01,
+            "m__max_depth": 7,
+            "m__n_estimators": 1000
+        },
+        {
+            "m__learning_rate": 0.1,
+            "m__max_depth": 4,
+            "m__n_estimators": 700
+        },
+        {
+            "m__learning_rate": 0.01,
+            "m__max_depth": 7,
+            "m__n_estimators": 1000
+        },
+        {
+            "m__learning_rate": 0.01,
+            "m__max_depth": 7,
+            "m__n_estimators": 1000
+        },
+        {
+            "m__learning_rate": 0.1,
+            "m__max_depth": 4,
+            "m__n_estimators": 700
+        },
+        {
+            "m__learning_rate": 0.1,
+            "m__max_depth": 4,
+            "m__n_estimators": 400
+        },
+        {
+            "m__learning_rate": 0.1,
+            "m__max_depth": 4,
+            "m__n_estimators": 400
+        },
+        {
+            "m__learning_rate": 0.1,
+            "m__max_depth": 4,
+            "m__n_estimators": 400
+        },
+        {
+            "m__learning_rate": 0.1,
+            "m__max_depth": 4,
+            "m__n_estimators": 400
+        }
+    ],
+    "test_score_allfts": [
+        0.914467135947644,
+        0.9023194141228945,
+        0.9153983036695251,
+        0.9152092184441362,
+        0.8967030629175607,
+        0.9119682051934793,
+        0.9215014304835316,
+        0.8909478831126153,
+        0.9259514272678744,
+        0.8853809400426893
+    ],
+    "cv_mean_allfts": [
+        0.9027855934921165,
+        0.9042480856423808,
+        0.9032338705136163,
+        0.902181558906786,
+        0.9060358534976356,
+        0.9049324481234123,
+        0.904371840022496,
+        0.9058739960538038,
+        0.9021492677682901,
+        0.905610170592442
+    ],
+    "cv_std_allfts": [
+        0.006339264524731561,
+        0.007789844011400816,
+        0.005789151499990714,
+        0.003560903453254207,
+        0.005874067112660947,
+        0.0026624762493640177,
+        0.005524168416401425,
+        0.0068250170489914,
+        0.00582236710081876,
+        0.004904114106386634
+    ],
+    "cv_params_allfts": [
+        {
+            "m__learning_rate": 0.1,
+            "m__max_depth": 4,
+            "m__n_estimators": 700
+        },
+        {
+            "m__learning_rate": 0.1,
+            "m__max_depth": 4,
+            "m__n_estimators": 400
+        },
+        {
+            "m__learning_rate": 0.1,
+            "m__max_depth": 4,
+            "m__n_estimators": 700
+        },
+        {
+            "m__learning_rate": 0.1,
+            "m__max_depth": 4,
+            "m__n_estimators": 400
+        },
+        {
+            "m__learning_rate": 0.1,
+            "m__max_depth": 4,
+            "m__n_estimators": 700
+        },
+        {
+            "m__learning_rate": 0.1,
+            "m__max_depth": 4,
+            "m__n_estimators": 1000
+        },
+        {
+            "m__learning_rate": 0.1,
+            "m__max_depth": 4,
+            "m__n_estimators": 400
+        },
+        {
+            "m__learning_rate": 0.1,
+            "m__max_depth": 4,
+            "m__n_estimators": 700
+        },
+        {
+            "m__learning_rate": 0.1,
+            "m__max_depth": 4,
+            "m__n_estimators": 400
+        },
+        {
+            "m__learning_rate": 0.1,
+            "m__max_depth": 4,
+            "m__n_estimators": 400
+        }
+    ]
+}

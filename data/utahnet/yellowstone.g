@@ -1,0 +1,9 @@
+-110.859 44.6458 WY Madison Junc.
+-110.701 44.9767 WY Mammoth
+-110.575 44.4155 WY West Thumb
+-110.832 44.4597 WY Old Faithful
+-110.695 44.7337 WY Norris Junc.
+-110.493 44.7362 WY Canyon Junc.
+-110.416 44.9163 WY Tower Junc.
+-110.376 44.5648 WY Fishing Bridge
+-111.103 44.6622 MT W. Yellowstone
