@@ -499,7 +499,7 @@ class UnsupervisedFeatureSelection():
 
         return kept_features
     
-class CustomRFECVUpdate():
+class CustomRFECV():
     @staticmethod
     def get_estimator_feature_importance(estimator_pipeline):
         """Make the importance_getter argument for RFECV given the estimator model type"""
@@ -629,7 +629,7 @@ class CustomRFECVUpdate():
             best_score = -1
             best_N = -1
             best_feats = None
-            feature_inds_ranked = CustomRFECVUpdate.rank_features_by_importance(Xi_train,
+            feature_inds_ranked = CustomRFECV.rank_features_by_importance(Xi_train,
                                                                           yi_train,
                                                                           estimator_model,
                                                                           estimator_scaler,
@@ -707,7 +707,7 @@ class CustomRFECVUpdate():
             print(estimator_pipeline['m'])
 
         fselector = estimator_pipeline.fit(X_train, y_train)
-        feat_importances = CustomRFECVUpdate.get_estimator_feature_importance(fselector)
+        feat_importances = CustomRFECV.get_estimator_feature_importance(fselector)
         feature_inds_ranked = feat_importances.argsort()[::-1][:len(feat_importances)]
         return feature_inds_ranked
     
@@ -721,7 +721,7 @@ class CustomRFECVUpdate():
         
         # Select n features from the folds training set
         fselector = estimator_pipeline.fit(X_train, y_train)
-        feat_importances = CustomRFECVUpdate.get_estimator_feature_importance(fselector)
+        feat_importances = CustomRFECV.get_estimator_feature_importance(fselector)
         feature_inds_ranked = feat_importances.argsort()[::-1][:n_feats]
         Xfeat_train = X_train[:, feature_inds_ranked]
         Xfeat_test = None
@@ -761,7 +761,7 @@ class CustomRFECVUpdate():
             if N_i is None:
                 continue
                 
-            feature_subset, gs_results, _ = CustomRFECVUpdate.custom_rfe(X, 
+            feature_subset, gs_results, _ = CustomRFECV.custom_rfe(X, 
                                                             y,
                                                             estimator_pipeline,
                                                             N_i,
@@ -790,7 +790,7 @@ class CustomRFECVUpdate():
                                                 filtered_feat_inds = None
                                                 ):
         
-        feature_inds_ranked = CustomRFECVUpdate.rank_features_by_importance(X,
+        feature_inds_ranked = CustomRFECV.rank_features_by_importance(X,
                                                                     y,
                                                                     estimator_model,
                                                                     estimator_scaler,
@@ -931,7 +931,7 @@ class CustomRFECVUpdate():
                 bool_arr = np.zeros(len(feature_names), dtype=bool)
                 bool_arr[fold_feats] = True
                 selected_feats_bool[i, :] = bool_arr
-            feat_usage_df = CustomRFECVUpdate.count_feature_usage(selected_feats_bool, feature_names)
+            feat_usage_df = CustomRFECV.count_feature_usage(selected_feats_bool, feature_names)
             important_feats_df_dict[stat] = feat_usage_df[['Feature', 'cvcnt']].set_index('Feature')
 
         return important_feats_df_dict
@@ -954,7 +954,7 @@ class CustomRFECVUpdate():
                 fold_feats = stat_feature_dict["best"]['selected_feature_inds']
             bool_arr = np.zeros(len(feature_names), dtype=bool)
             bool_arr[fold_feats] = True
-            feat_usage_df = CustomRFECVUpdate.count_feature_usage([bool_arr], feature_names)
+            feat_usage_df = CustomRFECV.count_feature_usage([bool_arr], feature_names)
             important_feats_df_dict[stat] = feat_usage_df[['Feature', 'cvcnt']].set_index('Feature')
 
         return important_feats_df_dict
