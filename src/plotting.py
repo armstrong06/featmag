@@ -716,7 +716,8 @@ def actual_v_network_avg_prediction(df_list,
                                     linecolor='k',
                                     linestyle='-',
                                     text_x=[0.0],
-                                    text_y=[-1.2]
+                                    text_y=[-1.2],
+                                    legend_loc='lower right'
                                     ):
 
     if ax is None:
@@ -743,7 +744,7 @@ def actual_v_network_avg_prediction(df_list,
                    color=marker_colors[i])
         ax.text(text_x[i] + i*1.0, plot_lims[1]+text_y[i],
                 f"$N$:{df.shape[0]: 0.0f}\n$R^2$:{r2: 0.2f}\n$RMSE$:{rmse: 0.2f}", 
-                fontsize=10,
+                #fontsize=10,
                 color=marker_colors[i],
                 bbox=dict(facecolor='white', alpha=0.5, edgecolor='white')) 
 
@@ -764,13 +765,13 @@ def actual_v_network_avg_prediction(df_list,
             linestyle=linestyle)
 
     if plot_xlabel:
-        ax.set_xlabel(r"Actual $M_L$", fontsize=12)
+        ax.set_xlabel(r"Actual $M_L$") #, fontsize=12)
     if plot_ylabel:
-        ax.set_ylabel(r"Predicted Network (Average) $M_L$", fontsize=12)
+        ax.set_ylabel(r"Predicted Network (Average) $M_L$")#, fontsize=12)
     if plot_legend:
-        ax.legend(loc='lower right')
+        ax.legend(loc=legend_loc)
 
-    ax.set_title(title, fontsize=12)
+    ax.set_title(title) #, fontsize=12)
     ax.set_yticks(yticks, labels=ytick_labels);
     ax.set_xticks(yticks, labels=xtick_labels);
     ax.set_ylim(plot_lims);
@@ -820,7 +821,8 @@ def r2_boxplots(boxplots_dict, scatter_dict,
                 ylim=[0.6, 1.0],
                 savefigname=None,
                 plot_train=True,
-                legend_ax=1):
+                legend_ax=1,
+                figsize=(6.4, 4.8)):
     h_offset = 0.25
     r2_marker = '*'
     r2_markersize = 75
@@ -829,7 +831,8 @@ def r2_boxplots(boxplots_dict, scatter_dict,
     cap_width = 0.12
     xtick_locs = np.array(xtick_locs)
     splits = ['Train', 'Test A', 'Test B']
-    fig, axes = plt.subplots(2, 1, constrained_layout=True)
+    fig, axes = plt.subplots(2, 1, figsize=figsize,
+                             constrained_layout=True)
     bp1_cols = ['train_r2', 'test_r2']
     if not plot_train:
         bp1_cols = ['test_r2']
