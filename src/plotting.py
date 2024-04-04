@@ -822,12 +822,14 @@ def r2_boxplots(boxplots_dict, scatter_dict,
                 savefigname=None,
                 plot_train=True,
                 legend_ax=1,
-                figsize=(6.4, 4.8)):
+                figsize=(6.4, 4.8),
+                bp_colors = ['#f0f0f0', '#636363', '#bdbdbd'],
+                yticks={'major':0.1, 'minor':0.05},
+                legend_ncols=1):
     h_offset = 0.25
     r2_marker = '*'
     r2_markersize = 75
     r2_marker_linewidth = 0.9
-    bp_colors = ['#f0f0f0', '#636363', '#bdbdbd']
     cap_width = 0.12
     xtick_locs = np.array(xtick_locs)
     splits = ['Train', 'Test A', 'Test B']
@@ -898,14 +900,18 @@ def r2_boxplots(boxplots_dict, scatter_dict,
             if j == 0:
                 legend_boxes.append(bp1['boxes'][0])
 
-    if i == 1:
-        h_offset /= 2
+    # if i == 1:
+    #     h_offset /= 2
+    # elif (i+1)%2 == 0:
+    #     h_offset *= 1.5
+
+    h_offset *= 0.5*i
 
     for i, ax in enumerate(axes):
         ax.set_xticks(xtick_locs+(h_offset), xticklabels[i])
         ax.set_ylim(ylim)
-        ax.yaxis.set_major_locator(MultipleLocator(0.1))
-        ax.yaxis.set_minor_locator(MultipleLocator(0.05))
+        ax.yaxis.set_major_locator(MultipleLocator(yticks['major']))
+        ax.yaxis.set_minor_locator(MultipleLocator(yticks['minor']))
         ax.grid(axis='y', which='both')
         ax.set_xlim(xlims)
 
@@ -929,7 +935,7 @@ def r2_boxplots(boxplots_dict, scatter_dict,
     except:
         pass
 
-    axes[legend_ax].legend(legend_boxes, labels, loc='lower left')
+    axes[legend_ax].legend(legend_boxes, labels, loc='lower left', ncols=legend_ncols)
 
     if savefigname is not None:
         fig.savefig(savefigname, dpi=300)
