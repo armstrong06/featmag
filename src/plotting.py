@@ -289,7 +289,9 @@ def plot_rfecv_feature_heatmap(mega_df,
                                title=None,
                                fontsize=8,
                                figsize=None,
-                               feature_col=None):
+                               feature_col=None,
+                               lines=False,
+                               colormap=cm.Blues):
     if feature_col is None:
         feature_names = mega_df.index.values
     else:
@@ -297,7 +299,7 @@ def plot_rfecv_feature_heatmap(mega_df,
         mega_df = mega_df.drop(feature_col, axis=1)
     if ax is None:
         fig, ax = plt.subplots(figsize=figsize)
-    mappable = ax.imshow(mega_df.to_numpy(), cmap=cm.Blues)
+    mappable = ax.imshow(mega_df.to_numpy(), cmap=colormap)
     ax.set_yticks(np.arange(mega_df.shape[0]), 
                   feature_names,
                   fontsize=fontsize);
@@ -305,6 +307,11 @@ def plot_rfecv_feature_heatmap(mega_df,
                   mega_df.columns, 
                   rotation=90,
                   fontsize=fontsize);
+    if lines:
+        for l in np.arange(mega_df.shape[1])+0.475:
+            ax.axvline(l, color='k', linewidth=0.4)
+        for l in np.arange(mega_df.shape[0])+0.475:
+            ax.axhline(l, color='k', linewidth=0.4)
     
     med_fontsize = None
     if fontsize is not None:
@@ -324,7 +331,9 @@ def plot_feature_heatmaps_sidebyside(p_df, s_df,
                             fontsize=8,
                             savefigname=None,
                             p_title=f'$\it P$ Models',
-                            s_title=f'$\it S$ Models'):
+                            s_title=f'$\it S$ Models',
+                            lines=False,
+                            colormap=cm.Blues):
     asp = (p_df.shape[1] - 1)/(s_df.shape[1] -1 )
     fig, axes = plt.subplots(1, 2, 
                         figsize=figsize, 
@@ -336,14 +345,18 @@ def plot_feature_heatmaps_sidebyside(p_df, s_df,
                                         plot_colorbar=False,
                                         title=p_title,
                                         feature_col='Feature',
-                                        fontsize=fontsize)
+                                        fontsize=fontsize,
+                                        lines=lines,
+                                        colormap=colormap)
 
     im2 = plot_rfecv_feature_heatmap(s_df,
                                         ax=axes[1],
                                         plot_colorbar=False,
                                         title=s_title,
                                         feature_col='Feature',
-                                        fontsize=fontsize)
+                                        fontsize=fontsize,
+                                        lines=lines,
+                                        colormap=colormap)
     if colorbar:                                    
         plt.colorbar(im2, aspect=30, shrink=0.5, label=colorbarlabel, fraction=0.1)
 
