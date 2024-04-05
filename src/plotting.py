@@ -308,9 +308,9 @@ def plot_rfecv_feature_heatmap(mega_df,
                   rotation=90,
                   fontsize=fontsize);
     if lines:
-        for l in np.arange(mega_df.shape[1])+0.475:
+        for l in np.arange(mega_df.shape[1])+0.5:
             ax.axvline(l, color='k', linewidth=0.4)
-        for l in np.arange(mega_df.shape[0])+0.475:
+        for l in np.arange(mega_df.shape[0])+0.5:
             ax.axhline(l, color='k', linewidth=0.4)
     
     med_fontsize = None
