@@ -725,6 +725,7 @@ def actual_v_network_avg_prediction(df_list,
                                     alphas=[0.1],
                                     legend_labels=[None],
                                     plot_legend=False,
+                                    legend_ncols=1,
                                     marker_colors=['C0'],
                                     linecolor='k',
                                     linestyle='-',
@@ -733,7 +734,7 @@ def actual_v_network_avg_prediction(df_list,
                                     legend_loc='lower right',
                                     plot_lin_reg=False,
                                     scatter_s=20,
-                                    lin_reg_colors=None
+                                    lin_reg_color=None
                                     ):
 
     if ax is None:
@@ -743,17 +744,10 @@ def actual_v_network_avg_prediction(df_list,
     ytick_labels = yticks
     xtick_labels = yticks
 
-    if lin_reg_colors is None:
-        lin_reg_colors = marker_colors
-
     if not plot_ytick_labels:
         ytick_labels = []
     if not plot_xtick_labels:
         xtick_labels = []
-
-    mag_min = np.min([df["magnitude"].min() for df in df_list])
-    mag_max = np.max([df["magnitude"].max() for df in df_list])
-    mag_range = np.array([mag_min, mag_max])
 
     for i, df in enumerate(df_list):
         r2 = r2_score(df['magnitude'], df['predicted_magnitude'])
@@ -771,17 +765,6 @@ def actual_v_network_avg_prediction(df_list,
                 #fontsize=10,
                 color=marker_colors[i],
                 bbox=dict(facecolor='white', alpha=0.5, edgecolor='white')) 
-        if plot_lin_reg:
-            # Linear regression using numpy
-            m, b = np.polyfit(df["magnitude"], 
-                              df["predicted_magnitude"], 
-                              1)  # Fit the line y = mx + b
-
-            # Plot the regression line
-            ax.plot(mag_range, 
-                     m*mag_range + b, 
-                     color=lin_reg_colors[i],
-                     zorder=100)
 
         # ax.text(text_start[i]+0.2+ i*1.5, plot_lims[1]-0.475, 
         #         f"$N$={df.shape[0]: 0.0f}", fontsize=12,
@@ -797,14 +780,29 @@ def actual_v_network_avg_prediction(df_list,
             np.arange(plot_lims[0], plot_lims[1]+0.5, 0.5), 
             color=linecolor,
             linestyle=linestyle,
-            zorder=101)
+            zorder=101,)
+            #label="1-to-1")
+
+    if plot_lin_reg:
+        concat_df = pd.concat(df_list)
+        # Linear regression using numpy
+        m, b = np.polyfit(concat_df["magnitude"], 
+                          concat_df["predicted_magnitude"], 
+                            1)  # Fit the line y = mx + b
+
+        # Plot the regression line
+        ax.plot(concat_df["magnitude"], 
+                m*concat_df["magnitude"] + b, 
+                color=lin_reg_color,
+                zorder=100,)
+                #label="Regression")
 
     if plot_xlabel:
         ax.set_xlabel(r"Actual $M_L$") #, fontsize=12)
     if plot_ylabel:
         ax.set_ylabel(r"Predicted Network (Average) $M_L$")#, fontsize=12)
     if plot_legend:
-        ax.legend(loc=legend_loc)
+        ax.legend(loc=legend_loc, ncols=legend_ncols)
 
     ax.set_title(title) #, fontsize=12)
     ax.set_yticks(yticks, labels=ytick_labels);
