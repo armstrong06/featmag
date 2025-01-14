@@ -120,7 +120,8 @@ class GatherFeatureDatasets():
                 scaler=True,
                 source_dist_type='dist',
                 linear_model=True,
-                target_column='Event-Mean-YPML-S'):
+                target_column='Event-Mean-YPML-S',
+                verbose=True):
 
         X, scaler, feature_names = self.compute_feature_matrix(df,
                                                                freq_max=freq_max,
@@ -130,7 +131,8 @@ class GatherFeatureDatasets():
         y = df[target_column].values
 
         assert X.shape[0] == y.shape[0], 'X size does not match y size'
-        print(f'X shape: {X.shape}, y shape: {y.shape}')
+        if verbose:
+            print(f'X shape: {X.shape}, y shape: {y.shape}')
 
         return X, y, scaler, feature_names
 
