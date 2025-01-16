@@ -291,7 +291,9 @@ def plot_rfecv_feature_heatmap(mega_df,
                                figsize=None,
                                feature_col=None,
                                lines=False,
-                               colormap=cm.Blues):
+                               colormap=cm.Blues,
+                               colorbar_label='CV Count',
+                               cmap_location="right"):
     if feature_col is None:
         feature_names = mega_df.index.values
     else:
@@ -318,7 +320,8 @@ def plot_rfecv_feature_heatmap(mega_df,
         med_fontsize = fontsize + 1
     if plot_colorbar:
         plt.colorbar(mappable,
-                      shrink=0.6).set_label(label='CV Count',
+                     location=cmap_location,
+                      shrink=0.6).set_label(label=colorbar_label,
                                             fontsize=med_fontsize) 
     ax.set_title(title) #, fontsize=med_fontsize)
     return mappable
