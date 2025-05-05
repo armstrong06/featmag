@@ -767,7 +767,7 @@ def actual_v_network_avg_prediction(df_list,
                 f"$N$:{df.shape[0]: 0.0f}\n$R^2$:{r2: 0.2f}\n$RMSE$:{rmse: 0.2f}", 
                 #fontsize=10,
                 color=marker_colors[i],
-                bbox=dict(facecolor='white', alpha=0.5, edgecolor='white')) 
+                bbox=dict(facecolor='none', alpha=0.0, edgecolor='none')) 
 
         # ax.text(text_start[i]+0.2+ i*1.5, plot_lims[1]-0.475, 
         #         f"$N$={df.shape[0]: 0.0f}", fontsize=12,
