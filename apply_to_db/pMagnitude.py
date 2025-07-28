@@ -303,7 +303,7 @@ if __name__ == "__main__":
     mag_method_id = None
     with Session() as session:
         with session.begin():
-            print("Begining Query...")
+            print("Beginning Query...")
             query_results = get_arr_info_for_P_mags(
                 session,
                 wf_source_id=wf_source_id,

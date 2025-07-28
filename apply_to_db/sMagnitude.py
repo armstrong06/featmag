@@ -34,7 +34,7 @@ import pyuussFeatures as pf
 
 def create_features(query_results, stat_df, model_dir, mag_method_id):
     # LOAD THE MODELS
-    models_dict = load_all_models(model_dir, stat_df["station"].unique(), "P")
+    models_dict = load_all_models(model_dir, stat_df["station"].unique(), "S")
 
     all_features = []
     all_arr_mags = []
@@ -49,21 +49,44 @@ def create_features(query_results, stat_df, model_dir, mag_method_id):
             wf_info1 = query_results[i][4]
             db_channel2 = query_results[i][5]
             wf_info2 = query_results[i][6]
-            wf_stor_filename1 = wf_info1.hdf_file.name
-            wf_stor_filename2 = wf_info2.hdf_file.name
+
+            # Use featmag gain values if both channels have them, otherwise use simple_gain_vel
+            use_featmag_gain = False
+            if (db_channel1.featmag_gain is not None) and (
+                db_channel2.featmag_gain is not None
+            ):
+                use_featmag_gain = True
 
             #  Read N/1 waveform
-            pytable_reader1 = open_pytable(pytable_reader1, wf_stor_filename1)
-            pytable_row1 = pytable_reader1.select_row(wf_info1.id)
+            pytable_reader1, pytable_row1, channel1, simple_response1 = (
+                gather_channel_info(
+                    db_station, db_channel1, wf_info1, pytable_reader1, use_featmag_gain
+                )
+            )
             if pytable_row1 is None:
                 print(f"Failed to load waveform {wf_info1} - skipping")
                 continue
+            try:
+                channel1.simple_response = simple_response1
+            except ValueError as err:
+                print(err)
+                print(f"Failed to set N/1 response for {arr}.   Skipping...")
+                continue
 
             #  Read E/2 waveform
-            pytable_reader2 = open_pytable(pytable_reader2, wf_stor_filename2)
-            pytable_row2 = pytable_reader2.select_row(wf_info2.id)
+            pytable_reader2, pytable_row2, channel2, simple_response2 = (
+                gather_channel_info(
+                    db_station, db_channel2, wf_info2, pytable_reader2, use_featmag_gain
+                )
+            )
             if pytable_row2 is None:
-                print(f"Failed to load waveform {wf_info2} - skipping")
+                print(f"Failed to load waveform {wf_info1} - skipping")
+                continue
+            try:
+                channel2.simple_response = simple_response2
+            except ValueError as err:
+                print(err)
+                print(f"Failed to set E/2 response for {arr}.   Skipping...")
                 continue
 
             # Check arrival time and match signals
@@ -74,83 +97,22 @@ def create_features(query_results, stat_df, model_dir, mag_method_id):
             if arrival_time_relative_to_start < 0:
                 print("Arrival is before trace start - skipping")
                 continue
-            signal1 = pytable_row1[start_ind:end_ind]
-            signal2 = pytable_row2[start_ind:end_ind]
+            signal1 = pytable_row1["data"][start_ind:end_ind]
+            signal2 = pytable_row2["data"][start_ind:end_ind]
             if len(signal1) != len(signal2):
                 print(
                     f"Inconsistent signal sizes for {arr}: {len(signal1)}, {len(signal2)},skipping..."
                 )
                 continue
 
-            # Use featmag gain values if both channels have them, otherwise use simple_gain_vel
-            use_featmag_gain = False
-            if (db_channel1.featmag_gain is not None) and (
-                db_channel2.featmag_gain is not None
-            ):
-                use_featmag_gain = True
-
-            # Create the simple response for N/1
-            simple_response1 = pf.Magnitude.SimpleResponse()
-            if not use_featmag_gain:
-                gain = db_channel1.simple_gain_vel
-                gain_units = "DU/M/S"
-            else:
-                gain = db_channel1.featmag_gain
-                gain_units = db_channel1.featmag_gain_units
-            simple_response1.units = gain_units
-            simple_response1.value = gain
-
-            # Create the response for E/2
-            simple_response2 = pf.Magnitude.SimpleResponse()
-            if not use_featmag_gain:
-                gain = db_channel2.simple_gain_vel
-                gain_units = "DU/M/S"
-            else:
-                gain = db_channel2.featmag_gain
-                gain_units = db_channel2.featmag_gain_units
-            simple_response2.units = gain_units
-            simple_response2.value = gain
-
-            # Create channel N/1 information
-            channel1 = pf.Magnitude.Channel()
-            channel1.network_code = db_station.net
-            channel1.station_code = db_station.sta
-            channel1.channel_code = db_channel1.seed_code
-            channel1.location_code = db_channel1.loc
-            channel1.latitude = db_station.lat
-            channel1.longitude = db_station.lon
-            channel1.sampling_rate = wf_info1.source.common_samp_rate
-            channel1.azimuth = db_channel1.azimuth
-            try:
-                channel1.simple_response = simple_response1
-            except ValueError as err:
-                print(err)
-                print(f"Failed to set N/1 response for {arr}.   Skipping...")
-                continue
-
-            # Create channel E/2 information
-            channel2 = pf.Magnitude.Channel()
-            channel2.network_code = db_station.net
-            channel2.station_code = db_station.sta
-            channel2.channel_code = db_channel2.seed_code
-            channel2.location_code = db_channel2.loc
-            channel2.latitude = db_station.lat
-            channel2.longitude = db_station.lon
-            channel2.sampling_rate = wf_info2.source.common_samp_rate
-            channel2.azimuth = db_channel2.azimuth
-            try:
-                channel2.simple_response = simple_response2
-            except ValueError as err:
-                print(err)
-                print(f"Failed to set E/2 response for {arr}.   Skipping...")
-                continue
-
+            # Create the hypocenter
             hypocenter = pf.Magnitude.Hypocenter()
             hypocenter.latitude = db_origin.lat
             hypocenter.longitude = db_origin.lon
             hypocenter.depth = db_origin.depth / 1000  # put in km
             hypocenter.identifier = db_origin.id
 
+            # Create S Feature Extractor
             sf = pf.Magnitude.SFeatures()
             try:
                 sf.initialize(channel1, channel2)
@@ -167,124 +129,28 @@ def create_features(query_results, stat_df, model_dir, mag_method_id):
                 print(f"Failed to process signal {arr}.  Skipping...")
                 continue
 
-            radial_velocity_signal = sf.radial_velocity_signal
-            transverse_velocity_signal = sf.transverse_velocity_signal
-            transverse_temporal_noise_features = sf.transverse_temporal_noise_features
-            transverse_temporal_signal_features = sf.transverse_temporal_signal_features
-            transverse_spectral_noise_features = sf.transverse_spectral_noise_features
-            transverse_spectral_signal_features = sf.transverse_spectral_signal_features
-            radial_temporal_noise_features = sf.radial_temporal_noise_features
-            radial_temporal_signal_features = sf.radial_temporal_signal_features
-            radial_spectral_noise_features = sf.radial_spectral_noise_features
-            radial_spectral_signal_features = sf.radial_spectral_signal_features
-
-            [frequencies, transverse_noise_amplitudes] = (
-                transverse_spectral_noise_features.average_frequencies_and_amplitudes
-            )
-            [frequencies, transverse_signal_amplitudes] = (
-                transverse_spectral_signal_features.average_frequencies_and_amplitudes
-            )
-            [frequencies, radial_noise_amplitudes] = (
-                radial_spectral_noise_features.average_frequencies_and_amplitudes
-            )
-            [frequencies, radial_signal_amplitudes] = (
-                radial_spectral_signal_features.average_frequencies_and_amplitudes
-            )
-
-            # Likely a problem with the gain Mw8.8 in Maule had PGV of 100
-            if max(abs(radial_velocity_signal)) > 200 * 10000:
+            # Get the feature for radial and transverse
+            feats_rad = make_radial_feature_dict(sf, arr.id, wf_info1.id, wf_info2.id)
+            if feats_rad is None:
                 print(f"Abnormally large velocity signal, skipping {arr}...")
                 continue
-
-            feats_rad = {
-                "arid": arr.id,
-                "comp": "R",
-                "wf_info_id": wf_info1.id,
-                "wf_info2_id": wf_info2.id,
-                "noise_var": radial_temporal_noise_features.variance,
-                "noise_mine": radial_temporal_noise_features.minimum_and_maximum_value[
-                    0
-                ],
-                "noise_max": radial_temporal_noise_features.minimum_and_maximum_value[
-                    1
-                ],
-                "signal_var": radial_temporal_signal_features.variance,
-                "signal_min": radial_temporal_signal_features.minimum_and_maximum_value[
-                    0
-                ],
-                "signal_max": radial_temporal_signal_features.minimum_and_maximum_value[
-                    1
-                ],
-                "noise_dom_freq": radial_spectral_noise_features.dominant_frequency_and_amplitude[
-                    0
-                ],
-                "noise_dom_amp": radial_spectral_noise_features.dominant_frequency_and_amplitude[
-                    1
-                ],
-                "signal_dom_freq": radial_spectral_signal_features.dominant_frequency_and_amplitude[
-                    0
-                ],
-                "signal_dom_amp": radial_spectral_signal_features.dominant_frequency_and_amplitude[
-                    1
-                ],
-            }
-            for f in range(len(frequencies)):
-                feats_rad[f"avg_noise_{frequencies[f]:.0f}hz"] = (
-                    radial_noise_amplitudes[f]
-                )
-                feats_rad[f"avg_signal_{frequencies[f]:.0f}hz"] = (
-                    radial_signal_amplitudes[f]
-                )
-
             all_features.append(feats_rad)
 
-            feats_trans = {
-                "arid": arr.id,
-                "comp": "T",
-                "wf_info_id": wf_info1.id,
-                "wf_info2_id": wf_info2.id,
-                "noise_var": transverse_temporal_noise_features.variance,
-                "noise_mine": transverse_temporal_noise_features.minimum_and_maximum_value[
-                    0
-                ],
-                "noise_max": transverse_temporal_noise_features.minimum_and_maximum_value[
-                    1
-                ],
-                "signal_var": transverse_temporal_signal_features.variance,
-                "signal_min": transverse_temporal_signal_features.minimum_and_maximum_value[
-                    0
-                ],
-                "signal_max": transverse_temporal_signal_features.minimum_and_maximum_value[
-                    1
-                ],
-                "noise_dom_freq": transverse_spectral_noise_features.dominant_frequency_and_amplitude[
-                    0
-                ],
-                "noise_dom_amp": transverse_spectral_noise_features.dominant_frequency_and_amplitude[
-                    1
-                ],
-                "signal_dom_freq": transverse_spectral_signal_features.dominant_frequency_and_amplitude[
-                    0
-                ],
-                "signal_dom_amp": transverse_spectral_signal_features.dominant_frequency_and_amplitude[
-                    1
-                ],
-            }
-            for f in range(len(frequencies)):
-                feats_trans[f"avg_noise_{frequencies[f]:.0f}hz"] = (
-                    transverse_noise_amplitudes[f]
-                )
-                feats_trans[f"avg_signal_{frequencies[f]:.0f}hz"] = (
-                    transverse_signal_amplitudes[f]
-                )
-
+            feats_trans = make_transverse_feature_dict(
+                sf, arr.id, wf_info1.id, wf_info2.id
+            )
+            if feats_trans is None:
+                print(f"Abnormally large velocity signal, skipping {arr}...")
+                continue
             all_features.append(feats_trans)
 
             has_model = np.any(
                 (stat_df["network"] == db_station.net)
                 & (stat_df["station"] == db_station.sta)
-                & (stat_df["channel1"] == db_channel1.seed_code)
-                & (stat_df["channel2"] == db_channel2.seed_code)
+                # Only comparing the station type because at least 1 station in stat_df
+                # has EH[NE] and the db has EH[12] (which is what IRIS has)
+                & (stat_df["channel1"].str[:2] == db_channel1.seed_code[:2])
+                # & (stat_df["channel2"] == db_channel2.seed_code)
             )
 
             if has_model:
@@ -322,6 +188,105 @@ def create_features(query_results, stat_df, model_dir, mag_method_id):
             pytable_reader2.close()
 
     return all_features, all_arr_mags
+
+
+def make_transverse_feature_dict(sf, arr_id, wf_info1_id, wf_info2_id):
+    transverse_velocity_signal = sf.transverse_velocity_signal
+    transverse_temporal_noise_features = sf.transverse_temporal_noise_features
+    transverse_temporal_signal_features = sf.transverse_temporal_signal_features
+    transverse_spectral_noise_features = sf.transverse_spectral_noise_features
+    transverse_spectral_signal_features = sf.transverse_spectral_signal_features
+    # Likely a problem with the gain Mw8.8 in Maule had PGV of 100
+    if max(abs(transverse_velocity_signal)) > 200 * 10000:
+        return None
+
+    [frequencies, transverse_noise_amplitudes] = (
+        transverse_spectral_noise_features.average_frequencies_and_amplitudes
+    )
+    [frequencies, transverse_signal_amplitudes] = (
+        transverse_spectral_signal_features.average_frequencies_and_amplitudes
+    )
+    feats_trans = {
+        "arid": arr_id,
+        "comp": "T",
+        "wf_info_id": wf_info1_id,
+        "wf_info2_id": wf_info2_id,
+        "noise_var": transverse_temporal_noise_features.variance,
+        "noise_mine": transverse_temporal_noise_features.minimum_and_maximum_value[0],
+        "noise_max": transverse_temporal_noise_features.minimum_and_maximum_value[1],
+        "signal_var": transverse_temporal_signal_features.variance,
+        "signal_min": transverse_temporal_signal_features.minimum_and_maximum_value[0],
+        "signal_max": transverse_temporal_signal_features.minimum_and_maximum_value[1],
+        "noise_dom_freq": transverse_spectral_noise_features.dominant_frequency_and_amplitude[
+            0
+        ],
+        "noise_dom_amp": transverse_spectral_noise_features.dominant_frequency_and_amplitude[
+            1
+        ],
+        "signal_dom_freq": transverse_spectral_signal_features.dominant_frequency_and_amplitude[
+            0
+        ],
+        "signal_dom_amp": transverse_spectral_signal_features.dominant_frequency_and_amplitude[
+            1
+        ],
+    }
+    for f in range(len(frequencies)):
+        feats_trans[f"avg_noise_{frequencies[f]:.0f}hz"] = transverse_noise_amplitudes[
+            f
+        ]
+        feats_trans[f"avg_signal_{frequencies[f]:.0f}hz"] = (
+            transverse_signal_amplitudes[f]
+        )
+
+    return feats_trans
+
+
+def make_radial_feature_dict(sf, arr_id, wf_info1_id, wf_info2_id):
+    radial_velocity_signal = sf.radial_velocity_signal
+    radial_temporal_noise_features = sf.radial_temporal_noise_features
+    radial_temporal_signal_features = sf.radial_temporal_signal_features
+    radial_spectral_noise_features = sf.radial_spectral_noise_features
+    radial_spectral_signal_features = sf.radial_spectral_signal_features
+
+    # Likely a problem with the gain Mw8.8 in Maule had PGV of 100
+    if max(abs(radial_velocity_signal)) > 200 * 10000:
+        return None
+
+    [frequencies, radial_noise_amplitudes] = (
+        radial_spectral_noise_features.average_frequencies_and_amplitudes
+    )
+    [frequencies, radial_signal_amplitudes] = (
+        radial_spectral_signal_features.average_frequencies_and_amplitudes
+    )
+    feats_rad = {
+        "arid": arr_id,
+        "comp": "R",
+        "wf_info_id": wf_info1_id,
+        "wf_info2_id": wf_info2_id,
+        "noise_var": radial_temporal_noise_features.variance,
+        "noise_mine": radial_temporal_noise_features.minimum_and_maximum_value[0],
+        "noise_max": radial_temporal_noise_features.minimum_and_maximum_value[1],
+        "signal_var": radial_temporal_signal_features.variance,
+        "signal_min": radial_temporal_signal_features.minimum_and_maximum_value[0],
+        "signal_max": radial_temporal_signal_features.minimum_and_maximum_value[1],
+        "noise_dom_freq": radial_spectral_noise_features.dominant_frequency_and_amplitude[
+            0
+        ],
+        "noise_dom_amp": radial_spectral_noise_features.dominant_frequency_and_amplitude[
+            1
+        ],
+        "signal_dom_freq": radial_spectral_signal_features.dominant_frequency_and_amplitude[
+            0
+        ],
+        "signal_dom_amp": radial_spectral_signal_features.dominant_frequency_and_amplitude[
+            1
+        ],
+    }
+    for f in range(len(frequencies)):
+        feats_rad[f"avg_noise_{frequencies[f]:.0f}hz"] = radial_noise_amplitudes[f]
+        feats_rad[f"avg_signal_{frequencies[f]:.0f}hz"] = radial_signal_amplitudes[f]
+
+    return feats_rad
 
 
 def gather_channel_info(
@@ -434,8 +399,8 @@ def process_S_selected_feats(
 if __name__ == "__main__":
 
     # QUERY SETTINGS
-    min_date = datetime(2020, 1, 1, tzinfo=timezone.utc)
-    max_date = datetime(2020, 1, 2, tzinfo=timezone.utc)
+    min_date = datetime(2020, 1, 2, tzinfo=timezone.utc)
+    max_date = datetime(2025, 1, 1, tzinfo=timezone.utc)
     min_lat = 44
     max_lat = 45.167
     min_lon = -111.333
@@ -460,7 +425,9 @@ if __name__ == "__main__":
     s_all_train_df = pd.read_csv(f"{datadir}/s.train.csv")
     stations_to_skip = []
 
-    stat_df = s_all_train_df[["network", "station", "channel"]].drop_duplicates()
+    stat_df = s_all_train_df[
+        ["network", "station", "channel1", "channel2"]
+    ].drop_duplicates()
     stat_df = stat_df[~stat_df["station"].isin(stations_to_skip)]
     assert not np.any(np.isin(stat_df["station"], stations_to_skip))
 
@@ -471,7 +438,7 @@ if __name__ == "__main__":
     mag_method_id = None
     with Session() as session:
         with session.begin():
-            print("Begining Query...")
+            print("Beginning Query...")
             query_results = get_arr_info_for_S_mags(
                 session,
                 wf_source_id=wf_source_id,
